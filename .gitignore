@@ -1,0 +1,30 @@
+.venv/
+
+# Python cache/test artifacts
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local runtime artifacts
+.web_runtime/
+runtime_status.json
+runtime_jev.json
+alerts.jsonl
+trades*.jsonl
+shadow_demo_*.jsonl
+.bot.lock
+.bot-*.lock
+replay_outcomes_cache.json
+
+# Local secrets/config
+.env
+
+# OS/editor noise
+.DS_Store
+
+# Cached price history (re-fetchable via scripts/day_history.py)
+data/
+
+# Tuning runtime snapshots
+runtime_*.json
+source_copy.zip
