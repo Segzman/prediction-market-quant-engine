@@ -1,0 +1,13 @@
+[Unit]
+Description=PMQE self-heal check (bootstrap missing pieces, restart stale bot)
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-__PMQE_STATE_DIR__/.env
+Environment=PMQE_HOME=__PMQE_HOME__
+Environment=PMQE_STATE_DIR=__PMQE_STATE_DIR__
+Environment=PMQE_USER=__PMQE_USER__
+ExecStart=/bin/bash __PMQE_HOME__/deploy/vm/heal.sh
+Nice=10
+IOSchedulingClass=idle

@@ -1,0 +1,24 @@
+[Unit]
+Description=PMQE read-only dashboard
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=__PMQE_USER__
+Group=__PMQE_GROUP__
+WorkingDirectory=__PMQE_HOME__
+EnvironmentFile=__PMQE_STATE_DIR__/.env
+Environment=PYTHONUNBUFFERED=1
+Environment=PMQE_HOME=__PMQE_HOME__
+Environment=PMQE_STATE_DIR=__PMQE_STATE_DIR__
+ExecStart=/bin/bash __PMQE_HOME__/deploy/vm/web.sh
+Restart=always
+RestartSec=10
+KillMode=process
+TimeoutStopSec=15
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
