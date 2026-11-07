@@ -15,4 +15,7 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.lock
       - run: pip install -r requirements.lock
+      - run: pip install ruff mypy
+      - run: ruff check .
+      - run: mypy
       - run: python -m pytest -q
