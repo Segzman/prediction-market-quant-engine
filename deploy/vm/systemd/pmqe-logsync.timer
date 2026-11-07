@@ -1,0 +1,11 @@
+[Unit]
+Description=Push PMQE paper logs every ten minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=10min
+AccuracySec=1min
+Unit=pmqe-logsync.service
+
+[Install]
+WantedBy=timers.target

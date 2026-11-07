@@ -23,9 +23,10 @@ printf '\nunits:\n'
 BOT_ACTIVE="unknown"
 WEB_ACTIVE="unknown"
 TIMER_ACTIVE="unknown"
+LOG_TIMER_ACTIVE="unknown"
 
 if command -v systemctl >/dev/null 2>&1; then
-  for unit in pmqe-bot.service pmqe-web.service pmqe-heal.timer; do
+  for unit in pmqe-bot.service pmqe-web.service pmqe-heal.timer pmqe-logsync.timer; do
     active="$(systemctl is-active "$unit" 2>/dev/null || true)"
     enabled="$(systemctl is-enabled "$unit" 2>/dev/null || true)"
     printf '  %-20s active=%s enabled=%s\n' "$unit" "${active:-unknown}" "${enabled:-unknown}"
@@ -33,6 +34,7 @@ if command -v systemctl >/dev/null 2>&1; then
       pmqe-bot.service) BOT_ACTIVE="$active" ;;
       pmqe-web.service) WEB_ACTIVE="$active" ;;
       pmqe-heal.timer) TIMER_ACTIVE="$active" ;;
+      pmqe-logsync.timer) LOG_TIMER_ACTIVE="$active" ;;
     esac
   done
 else
@@ -149,6 +151,31 @@ if [ -f "$LOG_FILE" ]; then
   fi
 fi
 
+printf '\nbackup:\n'
+if [ -s "$STATE/logsync_last_success" ]; then
+  push_iso=""
+  push_epoch=""
+  push_commit=""
+  {
+    IFS= read -r push_iso || true
+    IFS= read -r push_epoch || true
+    IFS= read -r push_commit || true
+  } < "$STATE/logsync_last_success"
+  now="$(date +%s)"
+  if [ -n "$push_epoch" ]; then
+    push_age=$((now - push_epoch))
+    printf '  last push: %s (%ss ago) commit=%s\n' "$push_iso" "$push_age" "${push_commit:-unknown}"
+  else
+    printf '  last push: %s\n' "${push_iso:-unknown}"
+  fi
+else
+  printf '  last push: none yet\n'
+fi
+if [ -s "$STATE/logsync_last_error" ]; then
+  backup_error="$(tail -n 1 "$STATE/logsync_last_error" 2>/dev/null || true)"
+  printf '  last error: %s\n' "$backup_error"
+fi
+
 printf '\nhealthz:\n'
 if command -v curl >/dev/null 2>&1; then
   healthz="$(curl -fsS --max-time 3 "http://127.0.0.1:$PORT/healthz" 2>/dev/null || true)"
@@ -168,6 +195,9 @@ if [ "$WEB_ACTIVE" != "active" ] && [ "$HEALTH_RC" -eq 0 ]; then
   HEALTH_RC=1
 fi
 if [ "$TIMER_ACTIVE" != "active" ] && [ "$HEALTH_RC" -eq 0 ]; then
+  HEALTH_RC=1
+fi
+if [ "$LOG_TIMER_ACTIVE" != "active" ] && [ "$HEALTH_RC" -eq 0 ]; then
   HEALTH_RC=1
 fi
 

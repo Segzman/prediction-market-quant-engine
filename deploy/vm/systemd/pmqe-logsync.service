@@ -1,0 +1,18 @@
+[Unit]
+Description=PMQE private paper log backup
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=__PMQE_USER__
+Group=__PMQE_GROUP__
+EnvironmentFile=__PMQE_STATE_DIR__/.env
+Environment=PMQE_HOME=__PMQE_HOME__
+Environment=PMQE_STATE_DIR=__PMQE_STATE_DIR__
+Environment=PMQE_LOGS_HOME=__PMQE_LOGS_HOME__
+Environment=PMQE_USER=__PMQE_USER__
+ExecStart=/bin/bash __PMQE_HOME__/deploy/vm/logsync.sh
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=180

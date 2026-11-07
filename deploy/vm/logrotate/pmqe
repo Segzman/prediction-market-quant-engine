@@ -1,0 +1,13 @@
+__PMQE_STATE_DIR__/logs/bot.log
+__PMQE_STATE_DIR__/logs/web.log
+__PMQE_STATE_DIR__/logs/logsync.log
+{
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    su __PMQE_USER__ __PMQE_GROUP__
+}

@@ -47,6 +47,7 @@ RUN_GROUP="$(id -gn "$RUN_USER" 2>/dev/null || id -gn)"
 
 ROOT="${ROOT:-$RUN_HOME/pmqe}"
 STATE="${STATE:-$RUN_HOME/pmqe-state}"
+LOGS_ROOT="${PMQE_LOGS_HOME:-$RUN_HOME/pmqe-logs}"
 
 if [ "$EUID" -eq 0 ]; then
   SUDO=()
@@ -89,6 +90,8 @@ ensure_packages() {
   command -v git >/dev/null 2>&1 || missing+=(git)
   command -v curl >/dev/null 2>&1 || missing+=(curl)
   command -v lsof >/dev/null 2>&1 || missing+=(lsof)
+  command -v ssh-keygen >/dev/null 2>&1 || missing+=(openssh-client)
+  command -v logrotate >/dev/null 2>&1 || missing+=(logrotate)
   if command -v python3 >/dev/null 2>&1; then
     if ! python3 -c 'import venv' >/dev/null 2>&1 || ! python3 -c 'import ensurepip' >/dev/null 2>&1; then
       missing+=(python3-venv)
@@ -129,6 +132,127 @@ clone_or_update() {
   fi
 }
 
+SSH_DIR="$RUN_HOME/.ssh"
+LOGS_KEY="$SSH_DIR/pmqe_logs_ed25519"
+LOGS_SSH_CONFIG="$SSH_DIR/pmqe_logs_config"
+LOG_HOST="${PMQE_LOG_HOST:-$(hostname -s 2>/dev/null || hostname)}"
+
+ensure_logs_key() {
+  mkdir -p "$SSH_DIR"
+  chmod 700 "$SSH_DIR" 2>/dev/null || true
+  if [ ! -f "$LOGS_KEY" ]; then
+    log "generating logs deploy key at $LOGS_KEY"
+    ssh-keygen -t ed25519 -N "" -C "pmqe-logs@$LOG_HOST" -f "$LOGS_KEY" >/dev/null
+    chmod 600 "$LOGS_KEY"
+    chmod 644 "$LOGS_KEY.pub"
+  fi
+  if [ "$EUID" -eq 0 ] && [ "$RUN_USER" != "root" ]; then
+    chown -R "$RUN_USER:$RUN_GROUP" "$SSH_DIR" 2>/dev/null || true
+  fi
+  printf '\n[pmqe] ADD THIS AS A DEPLOY KEY WITH WRITE ACCESS\n'
+  printf '[pmqe] repo: https://github.com/Segzman/pmqe-paper-logs/settings/keys\n'
+  printf '[pmqe] %s\n\n' "$(cat "$LOGS_KEY.pub")"
+}
+
+write_logs_ssh_config() {
+  local config="$SSH_DIR/config"
+  local proxy_url proxy_no_scheme proxy_auth proxy_host proxy_port proxy_line
+  local tool_ok=0
+
+  mkdir -p "$SSH_DIR"
+  touch "$config"
+  chmod 600 "$config" 2>/dev/null || true
+  if ! grep -q 'pmqe_logs_config' "$config" 2>/dev/null; then
+    printf '\nInclude %s\n' "$LOGS_SSH_CONFIG" >> "$config"
+  fi
+
+  proxy_url="${HTTPS_PROXY:-${https_proxy:-${HTTP_PROXY:-${http_proxy:-}}}}"
+  proxy_line=""
+  if [ -n "$proxy_url" ]; then
+    proxy_auth=""
+    proxy_no_scheme="${proxy_url#*://}"
+    if [ "$proxy_no_scheme" = "$proxy_url" ]; then
+      proxy_no_scheme="$proxy_url"
+    fi
+    case "$proxy_no_scheme" in
+      *@*)
+        proxy_auth="${proxy_no_scheme%%@*}"
+        proxy_no_scheme="${proxy_no_scheme##*@}"
+        ;;
+    esac
+    proxy_host="${proxy_no_scheme%:*}"
+    proxy_port="${proxy_no_scheme##*:}"
+    if [ "$proxy_host" = "$proxy_port" ]; then
+      proxy_port="8080"
+    fi
+    if [ -n "$proxy_auth" ]; then
+      log "proxy URL contains credentials; corkscrew and nc do not handle them"
+    fi
+    if command -v corkscrew >/dev/null 2>&1; then
+      proxy_line="    ProxyCommand corkscrew $proxy_host $proxy_port %h %p"
+      tool_ok=1
+    elif command -v nc >/dev/null 2>&1 && nc -h 2>&1 | grep -q -- '-X'; then
+      proxy_line="    ProxyCommand nc -X connect -x $proxy_host:$proxy_port %h %p"
+      tool_ok=1
+    elif command -v ncat >/dev/null 2>&1; then
+      proxy_line="    ProxyCommand ncat --proxy-type http --proxy $proxy_host:$proxy_port %h %p"
+      tool_ok=1
+    fi
+    if [ "$tool_ok" -eq 0 ]; then
+      log "HTTPS_PROXY is set but corkscrew, nc with CONNECT support, and ncat are missing"
+    fi
+  fi
+
+  {
+    printf 'Host pmqe-logs-gh\n'
+    printf '    HostName github.com\n'
+    printf '    User git\n'
+    printf '    IdentityFile %s\n' "$LOGS_KEY"
+    printf '    IdentitiesOnly yes\n'
+    printf '    StrictHostKeyChecking accept-new\n'
+    printf '    UserKnownHostsFile %s/known_hosts\n' "$SSH_DIR"
+    printf '    ConnectTimeout 15\n'
+    if [ -n "$proxy_line" ]; then
+      printf '%s\n' "$proxy_line"
+    fi
+  } > "$LOGS_SSH_CONFIG"
+  chmod 600 "$LOGS_SSH_CONFIG" 2>/dev/null || true
+  if [ "$EUID" -eq 0 ] && [ "$RUN_USER" != "root" ]; then
+    chown -R "$RUN_USER:$RUN_GROUP" "$SSH_DIR" 2>/dev/null || true
+  fi
+  export GIT_SSH_COMMAND="ssh -F $config -o BatchMode=yes -o ConnectTimeout=15"
+}
+
+clone_logs_repo() {
+  if [ ! -d "$LOGS_ROOT/.git" ]; then
+    if [ -e "$LOGS_ROOT" ] && [ -n "$(ls -A "$LOGS_ROOT" 2>/dev/null || true)" ]; then
+      log "logs path $LOGS_ROOT exists and is not a git checkout"
+      return 1
+    fi
+    log "cloning logs repo into $LOGS_ROOT"
+    mkdir -p "$(dirname "$LOGS_ROOT")"
+    if ! git clone --branch "$LOGS_BRANCH" "$LOGS_REPO" "$LOGS_ROOT"; then
+      return 1
+    fi
+  else
+    log "updating logs repo at $LOGS_ROOT"
+    git -c safe.directory="$LOGS_ROOT" -C "$LOGS_ROOT" remote set-url origin "$LOGS_REPO" >/dev/null 2>&1 || true
+    if ! git -c safe.directory="$LOGS_ROOT" -C "$LOGS_ROOT" fetch --prune origin "$LOGS_BRANCH"; then
+      return 1
+    fi
+    if git -c safe.directory="$LOGS_ROOT" -C "$LOGS_ROOT" show-ref --verify --quiet "refs/heads/$LOGS_BRANCH"; then
+      git -c safe.directory="$LOGS_ROOT" -C "$LOGS_ROOT" checkout "$LOGS_BRANCH" >/dev/null 2>&1 || return 1
+    else
+      git -c safe.directory="$LOGS_ROOT" -C "$LOGS_ROOT" checkout -B "$LOGS_BRANCH" FETCH_HEAD >/dev/null 2>&1 || return 1
+    fi
+    git -c safe.directory="$LOGS_ROOT" -C "$LOGS_ROOT" pull --rebase --autostash origin "$LOGS_BRANCH" >/dev/null 2>&1 || true
+  fi
+  if [ "$EUID" -eq 0 ] && [ "$RUN_USER" != "root" ]; then
+    chown -R "$RUN_USER:$RUN_GROUP" "$LOGS_ROOT" 2>/dev/null || true
+  fi
+  return 0
+}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd -P || true)"
 LOCAL_BOOTSTRAP="$ROOT/deploy/vm/bootstrap.sh"
 
@@ -157,9 +281,40 @@ if [ ! -f "$STATE/.env" ]; then
   sed \
     -e "s|__PMQE_HOME__|$ROOT|g" \
     -e "s|__PMQE_STATE_DIR__|$STATE|g" \
+    -e "s|__PMQE_LOGS_HOME__|$LOGS_ROOT|g" \
     "$ROOT/deploy/vm/pmqe.env.example" > "$STATE/.env"
   chmod 600 "$STATE/.env"
   log "wrote $STATE/.env; add operator secrets there"
+fi
+
+set -a
+# shellcheck disable=SC1090
+. "$STATE/.env"
+set +a
+
+LOGS_ROOT="${PMQE_LOGS_HOME:-$LOGS_ROOT}"
+LOGS_REPO="${PMQE_LOGS_REPO:-git@pmqe-logs-gh:Segzman/pmqe-paper-logs.git}"
+LOGS_BRANCH="${PMQE_LOGS_BRANCH:-main}"
+LOG_HOST="${PMQE_LOG_HOST:-$LOG_HOST}"
+
+ensure_logs_key
+write_logs_ssh_config
+
+LOGS_READY=0
+if clone_logs_repo; then
+  LOGS_READY=1
+else
+  log "logs repo is not reachable yet; add the deploy key above and re-run bootstrap"
+fi
+
+if [ "$LOGS_READY" -eq 1 ]; then
+  if ! env PMQE_HOME="$ROOT" \
+    PMQE_STATE_DIR="$STATE" \
+    PMQE_LOGS_HOME="$LOGS_ROOT" \
+    PMQE_LOG_HOST="$LOG_HOST" \
+    bash "$ROOT/deploy/vm/logsync.sh" --restore; then
+    log "log restore found no usable backup; continuing with current state"
+  fi
 fi
 
 VENV="$ROOT/.venv"
@@ -201,6 +356,7 @@ install_unit() {
   sed \
     -e "s|__PMQE_HOME__|$ROOT|g" \
     -e "s|__PMQE_STATE_DIR__|$STATE|g" \
+    -e "s|__PMQE_LOGS_HOME__|$LOGS_ROOT|g" \
     -e "s|__PMQE_USER__|$RUN_USER|g" \
     -e "s|__PMQE_GROUP__|$RUN_GROUP|g" \
     "$src" > "$TMP_UNITS/$name"
@@ -211,27 +367,35 @@ install_unit() {
   return 0
 }
 
-for unit in pmqe-bot.service pmqe-web.service pmqe-heal.service pmqe-heal.timer; do
+for unit in pmqe-bot.service pmqe-web.service pmqe-heal.service pmqe-heal.timer \
+  pmqe-logsync.service pmqe-logsync.timer; do
   if install_unit "$ROOT/deploy/vm/systemd/$unit" "$unit"; then
     UNIT_CHANGED=1
   fi
 done
 
-if [ "$EUID" -eq 0 ] && [ "$RUN_USER" != "root" ]; then
-  run_root chown -R "$RUN_USER:$RUN_GROUP" "$ROOT" "$STATE" 2>/dev/null || true
+sed \
+  -e "s|__PMQE_STATE_DIR__|$STATE|g" \
+  -e "s|__PMQE_USER__|$RUN_USER|g" \
+  -e "s|__PMQE_GROUP__|$RUN_GROUP|g" \
+  "$ROOT/deploy/vm/logrotate/pmqe" > "$TMP_UNITS/pmqe.logrotate"
+if [ -f /etc/logrotate.d/pmqe ] && cmp -s "$TMP_UNITS/pmqe.logrotate" /etc/logrotate.d/pmqe; then
+  :
+else
+  run_root install -m 0644 "$TMP_UNITS/pmqe.logrotate" /etc/logrotate.d/pmqe
 fi
 
-# Load the operator file before starting anything. The guard refuses to run
-# outside paper mode unless ALLOW_LIVE=1 is set explicitly.
-set -a
-# shellcheck disable=SC1090
-. "$STATE/.env"
-set +a
+if [ "$EUID" -eq 0 ] && [ "$RUN_USER" != "root" ]; then
+  run_root chown -R "$RUN_USER:$RUN_GROUP" "$ROOT" "$STATE" "$LOGS_ROOT" 2>/dev/null || true
+fi
+
+# .env was loaded before the logs repo work so logsync can see its settings.
 bash "$ROOT/deploy/vm/guard.sh"
 
 run_root systemctl daemon-reload
-run_root systemctl enable pmqe-bot.service pmqe-web.service pmqe-heal.timer >/dev/null
+run_root systemctl enable pmqe-bot.service pmqe-web.service pmqe-heal.timer pmqe-logsync.timer >/dev/null
 run_root systemctl start pmqe-heal.timer
+run_root systemctl start pmqe-logsync.timer
 
 if [ "$UNIT_CHANGED" -eq 1 ] || [ "$VENV_CHANGED" -eq 1 ] || [ "$CODE_CHANGED" -eq 1 ]; then
   log "restarting services to apply changes"

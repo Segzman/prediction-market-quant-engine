@@ -10,7 +10,8 @@ UNITS_DIR="/etc/systemd/system"
 missing=0
 [ -x "$ROOT/.venv/bin/python" ] || missing=1
 [ -f "$BOOTSTRAP" ] || missing=1
-for unit in pmqe-bot.service pmqe-web.service pmqe-heal.service pmqe-heal.timer; do
+for unit in pmqe-bot.service pmqe-web.service pmqe-heal.service pmqe-heal.timer \
+  pmqe-logsync.service pmqe-logsync.timer; do
   [ -f "$UNITS_DIR/$unit" ] || missing=1
 done
 
