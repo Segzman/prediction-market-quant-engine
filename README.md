@@ -62,7 +62,14 @@ Tracks select which regimes run: `CONVICTION_ONLY` (default), `MISPRICING_ONLY`,
 
 ## Experimenting with JEV (an AI judgment API)
 
-I wanted to try a newer kind of AI tooling: APIs that return a **typed judgment** about structured data instead of free-form chat text. JEV (TypeSafe's System One API, model `jev-latest`) takes a JSON `state` plus a named question with an answer type, and returns a typed answer, here a probability. I wired it in as an optional confirmation step to see whether that style of model could help on the hardest calls, without letting it put the engine at risk.
+I wanted to try a newer kind of AI tooling: APIs that return a **typed judgment** about structured data instead of free-form chat text. JEV (TypeSafe's System One API, model `jev-latest`) takes a JSON `state` plus a named question with an answer type, and returns a typed answer, here a probability.
+
+The idea was simple: instead of running the whole model stack, gather a handful of the same numbers the engine already computes (momentum, tick direction, consistency, acceleration, contract price movement), hand them to an API, and ask one question, essentially "should this entry go ahead?" Doing that on every contested decision turns the bot into a small experiment with four questions:
+
+- **Question framing.** Does the way a question is worded change the answer? The prompt deliberately asks about directional agreement, not "will it settle Up", to see whether a narrowly framed question gives more useful answers.
+- **Do the decision models hold their weight?** If a non-deterministic model fed a few deterministic inputs agrees or disagrees with the calibrated models, that is a cheap stress test of whether the hand-built weights add anything.
+- **Latency.** Is one API round trip on a few variables competitive with computing everything locally inside a 5-minute window, where seconds matter?
+- **Cost.** Is paying per question for a handful of contested calls cheaper than keeping a VM running all the models all the time?
 
 **How it works** (`strategy/jev.py`, called from `strategy/signal.py`):
 
@@ -79,7 +86,7 @@ I wanted to try a newer kind of AI tooling: APIs that return a **typed judgment*
 - **Answer parsing** accepts numeric or boolean answers and clamps to [0, 1].
 - **Tests:** `tests/test_jev.py` covers the gating, the cache, and the fail-closed paths with the network mocked.
 
-**What I learned:** the integration pattern (gate, cache, fail closed, threshold) matters more than the model. Whether JEV improves decisions is not established; it has not been evaluated out of sample, so it stays an experiment and is not part of the core models (A, B, C, P), which are my own.
+**Status:** the plumbing is built and tested; the four questions above are open. Answering them needs logged JEV calls with latency and cost per call, compared against the deterministic path on the same windows. Whether JEV improves decisions is not established and it has not been evaluated out of sample, so it stays an experiment, separate from the core models (A, B, C, P), which are my own. The lesson so far: the integration pattern (gate, cache, fail closed, threshold) matters more than the model.
 
 ## Architecture
 
