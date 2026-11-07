@@ -614,15 +614,25 @@ class BotRunManager:
         status_age_seconds = (now - float(generated_ts)) if generated_ts else None
 
         freshness = status_payload.get("freshness", {})
-        btc_feed = freshness.get("btc_feed", {})
-        polymarket_feed = freshness.get("polymarket_feed", {})
+        btc_feed = freshness.get("btc_feed") or {
+            "stale": freshness.get("btc_price_stale"),
+            "quorum_met": freshness.get("btc_price_quorum_met"),
+            "healthy_source_count": freshness.get("btc_healthy_source_count"),
+            "healthy_sources": freshness.get("btc_healthy_sources", []),
+            "divergence_bps": freshness.get("btc_price_divergence_bps"),
+        }
+        polymarket_feed = freshness.get("polymarket_feed") or {
+            "stale": freshness.get("polymarket_book_stale"),
+            "idle": freshness.get("polymarket_book_idle"),
+            "age_seconds": freshness.get("polymarket_book_age_seconds"),
+        }
 
         return {
             "running": running,
             "pid": pid,
             "generated_ts": generated_ts,
             "status_age_seconds": status_age_seconds,
-            "mode": state.get("config", {}).get("mode"),
+            "mode": state.get("config", {}).get("mode") or status_payload.get("mode"),
             "active_track": state.get("config", {}).get("active_track"),
             "btc_price_stale": btc_feed.get("stale"),
             "btc_price_quorum_met": btc_feed.get("quorum_met"),

@@ -661,6 +661,10 @@ async function fetchStatus() {
     if (!res.ok) return;
     const data = await res.json();
     if (!data) return;
+    if (data.read_only) {
+      const bar = document.getElementById("control-bar");
+      if (bar) bar.style.display = "none";
+    }
     updateControlState(data);
 
     const s = (data.status && typeof data.status === 'object') ? data.status : data;
