@@ -69,7 +69,14 @@ class BotRunManager:
         if config.duration is not None and config.duration <= 0:
             raise ValueError("Duration must be greater than 0")
 
-        command = [sys.executable, "bot.py", "--asset", config.asset.upper(), "--bankroll", f"{config.bankroll:.2f}"]
+        command = [
+            sys.executable,
+            "bot.py",
+            "--asset",
+            config.asset.upper(),
+            "--bankroll",
+            f"{config.bankroll:.2f}",
+        ]
         if mode == "shadow-live":
             command.append("--shadow-live")
         elif mode == "demo":
@@ -180,7 +187,11 @@ class BotRunManager:
             return {
                 "configured": False,
                 "running": False,
-                "report": {"rows": {}, "markdown": "", "tracks": {}, "comparison": {}} if include_report else {},
+                "report": (
+                    {"rows": {}, "markdown": "", "tracks": {}, "comparison": {}}
+                    if include_report
+                    else {}
+                ),
                 "logs": [] if include_logs else [],
             }
 

@@ -90,7 +90,7 @@ def test_daily_summary_correct(tmp_ledger):
 
 def test_file_created_if_not_exists(tmp_path):
     path = str(tmp_path / "new_trades.jsonl")
-    ledger = Ledger(filepath=path)
+    Ledger(filepath=path)
     assert os.path.exists(path)
 
 

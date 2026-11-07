@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 from config import ENTRY_WINDOW_END, ENTRY_WINDOW_START
-from .position import WindowPositions, Position, PositionStatus
+
+from .position import Position, WindowPositions
 
 
 class WindowPhase(Enum):
@@ -26,7 +26,7 @@ class WindowState:
 
     # Legacy single-trade tracking (deprecated, kept for compatibility)
     traded: bool = False
-    order_id: Optional[str] = None
+    order_id: str | None = None
     market_url: str = ""
     
     # New multi-position tracking

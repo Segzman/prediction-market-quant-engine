@@ -1,5 +1,5 @@
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from market.finder import MarketFinder
 
@@ -17,7 +17,7 @@ def test_finds_active_window(mock_client):
             {
                 "market_slug": "btc-updown-5m-1234",
                 "condition_id": "cond-abc",
-                "end_date_iso": datetime.fromtimestamp(end_ts, tz=timezone.utc).isoformat(),
+                "end_date_iso": datetime.fromtimestamp(end_ts, tz=UTC).isoformat(),
                 "tokens": [
                     {"outcome": "Up", "token_id": "up-token"},
                     {"outcome": "Down", "token_id": "down-token"},
@@ -39,7 +39,7 @@ def test_skips_expired_windows(mock_client):
             {
                 "market_slug": "btc-updown-5m-1234",
                 "condition_id": "cond-abc",
-                "end_date_iso": datetime.fromtimestamp(now - 60, tz=timezone.utc).isoformat(),
+                "end_date_iso": datetime.fromtimestamp(now - 60, tz=UTC).isoformat(),
                 "tokens": [
                     {"outcome": "Up", "token_id": "up"},
                     {"outcome": "Down", "token_id": "down"},
@@ -58,7 +58,7 @@ def test_skips_non_btc_markets(mock_client):
             {
                 "market_slug": "eth-updown-5m-9999",
                 "condition_id": "cond-xyz",
-                "end_date_iso": datetime.fromtimestamp(end_ts, tz=timezone.utc).isoformat(),
+                "end_date_iso": datetime.fromtimestamp(end_ts, tz=UTC).isoformat(),
                 "tokens": [
                     {"outcome": "Up", "token_id": "u"},
                     {"outcome": "Down", "token_id": "d"},
@@ -97,7 +97,7 @@ def test_uses_cached_window_when_refresh_raises(mock_client):
             {
                 "market_slug": "btc-updown-5m-1234",
                 "condition_id": "cond-abc",
-                "end_date_iso": datetime.fromtimestamp(end_ts, tz=timezone.utc).isoformat(),
+                "end_date_iso": datetime.fromtimestamp(end_ts, tz=UTC).isoformat(),
                 "tokens": [
                     {"outcome": "Up", "token_id": "up-token"},
                     {"outcome": "Down", "token_id": "down-token"},

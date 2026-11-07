@@ -18,7 +18,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -58,7 +58,7 @@ def load_or_fetch(day: str, symbol: str, cache_dir: Path) -> list[list]:
     path = cache_dir / f"btc_1m_{symbol}_{day}.json"
     if path.exists():
         return json.loads(path.read_text())
-    start = datetime.fromisoformat(day).replace(tzinfo=timezone.utc)
+    start = datetime.fromisoformat(day).replace(tzinfo=UTC)
     rows = fetch_klines(symbol, int(start.timestamp() * 1000),
                         int((start + timedelta(days=1)).timestamp() * 1000))
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -120,13 +120,16 @@ def main() -> None:
     parser.add_argument("--cache-dir", default="data")
     args = parser.parse_args()
 
-    end = datetime.fromisoformat(args.start).date() if args.start else datetime.now(timezone.utc).date()
+    end = datetime.fromisoformat(args.start).date() if args.start else datetime.now(UTC).date()
     start_date = end - timedelta(days=args.days - 1) if not args.start else end
     if not args.start:
         start_date = end - timedelta(days=args.days - 1)
     cache_dir = Path(args.cache_dir)
     all_windows = 0
-    print(f"{'day':<12} {'win':>5} {'up%':>5} {'|move|bp':>8} | " + "  ".join(f"{m:>14}" for m in ("1x persist", "2x persist", "4x persist")))
+    print(
+        f"{'day':<12} {'win':>5} {'up%':>5} {'|move|bp':>8} | "
+        + "  ".join(f"{m:>14}" for m in ("1x persist", "2x persist", "4x persist"))
+    )
     day = start_date
     while day <= (end if not args.start else start_date + timedelta(days=args.days - 1)):
         rows = load_or_fetch(day.isoformat(), args.symbol, cache_dir)
@@ -138,8 +141,16 @@ def main() -> None:
         cells = []
         for mult in ("1.0x", "2.0x", "4.0x"):
             bucket = stats["hits"].get(mult, {"n": 0, "w": 0})
-            cells.append(f"n={bucket['n']:<5} {100 * bucket['w'] / bucket['n'] if bucket['n'] else 0:>5.1f}%" if bucket["n"] else "thin")
-        print(f"{day.isoformat():<12} {stats['windows']:>5} {up_pct:>4.0f}% {med_move:>8.1f} | " + "  ".join(f"{c:>14}" for c in cells))
+            cells.append(
+                f"n={bucket['n']:<5} "
+                f"{100 * bucket['w'] / bucket['n'] if bucket['n'] else 0:>5.1f}%"
+                if bucket["n"] else "thin"
+            )
+        print(
+            f"{day.isoformat():<12} {stats['windows']:>5} {up_pct:>4.0f}% "
+            f"{med_move:>8.1f} | "
+            + "  ".join(f"{c:>14}" for c in cells)
+        )
         day += timedelta(days=1)
     print(f"{all_windows} windows scored (momentum threshold {MOMENTUM_THRESHOLD}; acc = move persistence)")
 

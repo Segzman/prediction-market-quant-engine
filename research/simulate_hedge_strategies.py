@@ -3,15 +3,16 @@
 Hedge Strategy Simulator - $10 Bankroll
 Compares different hedge behaviors for early-stage loss minimization.
 """
-import sys, pathlib
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-
 from __future__ import annotations
 
-import random
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable
 
 
 class Direction(Enum):
@@ -302,7 +303,10 @@ def print_results(results: list[TradeResult], title: str):
     for i, r in enumerate(results):
         hedge_pct = (r.hedge_bet / r.primary_bet * 100) if r.primary_bet > 0 else 0
         pnl_str = f"${r.pnl:+.2f}"
-        print(f"  {i+1:>6} | ${r.primary_bet:>6.2f} | ${r.hedge_bet:>6.2f} | {hedge_pct:>5.0f}% | {pnl_str:>8} | ${r.bankroll_after:>8.2f}")
+        print(
+            f"  {i+1:>6} | ${r.primary_bet:>6.2f} | ${r.hedge_bet:>6.2f} | "
+            f"{hedge_pct:>5.0f}% | {pnl_str:>8} | ${r.bankroll_after:>8.2f}"
+        )
 
     print(f"  {'-' * 60}")
     print(f"  Starting: ${start_bankroll:.2f}")

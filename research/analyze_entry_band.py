@@ -5,13 +5,14 @@ Parses all .web_runtime/*.log files, matches entry lines to exit lines by order_
 classifies trades into entry bands, and simulates three portfolios to evaluate a
 proposed new entry strategy.
 """
-import sys, pathlib
+import pathlib
+import sys
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-import re
 import glob
+import re
 from dataclasses import dataclass, field
-from typing import Optional
 
 # ---------------------------------------------------------------------------
 # Regex patterns
@@ -77,7 +78,7 @@ def parse_logs(log_glob: str):
 
     for path in log_files:
         try:
-            with open(path, "r", errors="replace") as fh:
+            with open(path, errors="replace") as fh:
                 for line in fh:
                     # Try entry match
                     m = ENTRY_RE.search(line)
@@ -165,7 +166,7 @@ class PortfolioStats:
     def run(self, all_trades: list[Trade]):
         self.trades = all_trades
 
-    def compute(self, cap_sl: Optional[float] = None):
+    def compute(self, cap_sl: float | None = None):
         """
         cap_sl: if set, clamp any STOP_LOSS exit PnL to this floor (e.g. -5.0 for -5%).
         Returns a dict of stats.
@@ -257,7 +258,7 @@ def print_comparison(stats_list: list[tuple[str, dict]]):
     sep = "+" + "+".join("-" * w for w in col_w) + "+"
     def row(*cells):
         parts = []
-        for val, w in zip(cells, col_w):
+        for val, w in zip(cells, col_w, strict=False):
             s = str(val)
             parts.append(f" {s:<{w-1}}")
         return "|" + "|".join(parts) + "|"

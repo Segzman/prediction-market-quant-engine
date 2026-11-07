@@ -16,8 +16,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from state.window import WindowState
-from strategy.signal import evaluate
 from scripts.simulate_models import (
     ENTRY_EVAL_SECONDS,
     SECONDS_PER_WINDOW,
@@ -25,6 +23,8 @@ from scripts.simulate_models import (
     rolling_volatility,
     simulate_price_path,
 )
+from state.window import WindowState
+from strategy.signal import evaluate
 
 
 @dataclass

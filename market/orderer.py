@@ -6,7 +6,6 @@ import math
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 from uuid import uuid4
 
 from config import (
@@ -38,7 +37,7 @@ class OrderStatus(Enum):
 
 @dataclass
 class OrderResult:
-    order_id: Optional[str]
+    order_id: str | None
     status: OrderStatus
     filled_size: float = 0.0
     avg_price: float = 0.0
@@ -228,7 +227,8 @@ class Orderer:
                 )
                 if price < min_price:
                     raise RuntimeError(
-                        f"Best bid {price:.4f} is structurally worse than floor {min_price:.4f} for {token_id}"
+                        f"Best bid {price:.4f} is structurally worse than "
+                        f"floor {min_price:.4f} for {token_id}"
                     )
 
         if price <= 0:
@@ -394,7 +394,7 @@ class Orderer:
         cancel_all_orders()
         return True
 
-    def get_best_ask(self, token_id: str) -> Optional[float]:
+    def get_best_ask(self, token_id: str) -> float | None:
         try:
             book = self._client.get_order_book(token_id)
         except RuntimeError as e:

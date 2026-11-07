@@ -13,7 +13,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from state.window import WindowState
 from strategy.signal import evaluate
 
-
 SECONDS_PER_WINDOW = 300
 WINDOWS_PER_HOUR = 12
 ENTRY_EVAL_SECONDS = range(210, 286, 5)
@@ -187,7 +186,10 @@ def daily_pnl(trades_per_hour: float, win_rate: float, stake: float, avg_fill_pr
 
 
 def render_summary(stats: dict[str, ModelStats], *, sessions: int, hours: int) -> None:
-    print(f"Simulated {sessions} independent {hours}-hour sessions ({sessions * hours * WINDOWS_PER_HOUR} windows)")
+    print(
+        f"Simulated {sessions} independent {hours}-hour sessions "
+        f"({sessions * hours * WINDOWS_PER_HOUR} windows)"
+    )
     print()
     print("| Model | Trades/Hour | Win Rate | Avg Fill | Avg Edge | PnL/Hour ($5) |")
     print("|---|---:|---:|---:|---:|---:|")

@@ -22,6 +22,7 @@ from config import (
     JEV_NOUL_MIN_PROBABILITY,
     LATE_CONVICTION_HIGH_PRICE_THRESHOLD,
 )
+from strategy.probability import ModelContext
 
 JEV_API_URL = "https://api.typesafe.ai/v1/systemone"
 JEV_MODEL = "jev-latest"
@@ -34,7 +35,7 @@ def _api_key() -> str:
     return os.getenv("TYPESAFE_API_KEY", "")
 
 
-def _cache_get(key: tuple) -> float | None | object:
+def _cache_get(key: tuple) -> float | None:
     """Return cached probability, None on miss/expiry. _MISS = cached miss."""
     entry = _cache.get(key)
     if entry is None:
@@ -142,7 +143,7 @@ def query_btc_agreement(
 
 
 def resolve_btc_confirmation(
-    model_context,
+    model_context: ModelContext | None,
     *,
     seconds_remaining: int,
     market_price: float,

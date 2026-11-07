@@ -17,7 +17,6 @@ import itertools
 import json
 from dataclasses import dataclass
 
-
 FEE_RATE = 0.072  # crypto taker estimate, mirrors estimate_trade_fee_usdc
 
 
@@ -222,7 +221,7 @@ def main() -> None:
             )
             rows.append((score.net, edge, conv, pmax, score))
         rows.sort(reverse=True)
-        for net, edge, conv, pmax, score in rows[:12]:
+        for _net, edge, conv, pmax, score in rows[:12]:
             print(
                 f"{edge:>6.2f} {conv:>6.2f} {pmax:>6.2f} {score.trades:>7d} "
                 f"{100 * score.win_rate:>5.1f}% {score.net:>+9.2f}"

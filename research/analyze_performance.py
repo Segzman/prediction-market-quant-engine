@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """Analyze trading performance from trade logs."""
-import sys, pathlib
+import pathlib
+import sys
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import json
 import sys
 from pathlib import Path
+
 
 def analyze_trades(trades_file: str):
     """Analyze trades from a JSONL file."""
     trades = []
     resolutions = {}
     
-    with open(trades_file, 'r') as f:
+    with open(trades_file) as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -42,7 +45,7 @@ def analyze_trades(trades_file: str):
     total_wins = 0
     total_losses = 0
     
-    for order_id, resolution in resolutions.items():
+    for _order_id, resolution in resolutions.items():
         pnl = resolution.get('pnl', 0)
         total_pnl += pnl
         if pnl > 0:
@@ -67,7 +70,7 @@ def analyze_trades(trades_file: str):
         print(f"  Avg Win: ${avg_win:.2f} | Avg Loss: ${avg_loss:.2f}")
     
     # Show recent trades
-    print(f"\n  Last 5 Trades:")
+    print("\n  Last 5 Trades:")
     for i, trade in enumerate(trades[-5:], 1):
         order_id = trade.get('order_id', '')
         res = resolutions.get(order_id, {})
@@ -79,16 +82,22 @@ def analyze_trades(trades_file: str):
               f"Edge: {edge:.3f} | {regime} | Consistency: {consistency:.2f} | "
               f"PnL: ${pnl:+.2f}")
     
-    print(f"\n  KEY ISSUES:")
+    print("\n  KEY ISSUES:")
     
     # Check for LATE_CONVICTION trades
-    late_trades = [t for t in trades if t.get('feature_snapshot', {}).get('entry_regime') == 'LATE_CONVICTION']
+    late_trades = [
+        t for t in trades
+        if t.get('feature_snapshot', {}).get('entry_regime') == 'LATE_CONVICTION'
+    ]
     if late_trades:
         late_pct = len(late_trades) / len(trades) * 100
         print(f"    - {late_pct:.0f}% of trades are LATE_CONVICTION (forced trades)")
     
     # Check directional consistency
-    low_consistency = [t for t in trades if t.get('feature_snapshot', {}).get('directional_consistency', 1) < 0.55]
+    low_consistency = [
+        t for t in trades
+        if t.get('feature_snapshot', {}).get('directional_consistency', 1) < 0.55
+    ]
     if low_consistency:
         print(f"    - {len(low_consistency)}/{len(trades)} trades have low directional consistency (<0.55)")
     

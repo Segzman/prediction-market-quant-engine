@@ -1,7 +1,8 @@
 # tests/test_track.py
-import logging
 import io
-from state.track import ModelTrack, TRACK_COLORS, TRACK_CSS_COLORS, TrackFormatter
+import logging
+
+from state.track import TRACK_COLORS, TRACK_CSS_COLORS, ModelTrack, TrackFormatter
 
 
 def test_track_colors_defined():
@@ -52,7 +53,6 @@ def test_track_formatter_strips_ansi_when_no_tty():
 def test_track_formatter_force_color(monkeypatch):
     monkeypatch.setenv("FORCE_COLOR", "1")
     formatter = TrackFormatter(track_name="BOTH", ansi_color="\033[92m")
-    handler = logging.StreamHandler(io.StringIO())
     record = logging.LogRecord("test", logging.INFO, "", 0, "msg", (), None)
     formatted = formatter.format(record)
     assert "\033[92m" in formatted

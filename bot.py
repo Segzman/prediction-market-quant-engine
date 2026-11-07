@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from collections import deque
 import contextlib
 import copy
 import hashlib
@@ -10,104 +9,94 @@ import json
 import logging
 import math
 import os
+import shutil
 import signal
 import statistics
-import shutil
 import sys
 import tempfile
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from config import (
     ACTIVE_MODEL_TRACK,
-    ALERTS_FILE,
     ALERT_ORDER_FAILURE_THRESHOLD,
     ALERT_ORDER_FAILURE_WINDOW_SECONDS,
     ALERT_RISK_BREACH_THROTTLE_SECONDS,
     ALERT_WEBHOOK_URL,
+    ALERTS_FILE,
     ALLOW_TRADING_WITHOUT_BTC_PRICE,
     ASSET_KEYWORDS,
     BANKROLL_RISK_FRACTION,
     BINANCE_REST_SYMBOLS,
     BOT_LOCK_FILE,
-    COOLDOWN_SECONDS,
-    CONSECUTIVE_LOSS_PAUSE_SECONDS,
-    DATA_DIR,
-    DEFAULT_MAX_CORRECTION_AGE,
-    DRY_RUN,
-    EDGE_THRESHOLD,
-    EXIT_REVERSE_SIGNAL,
-    EXIT_STOP_LOSS_PCT,
-    HIGH_CONVICTION_ENTRY_THRESHOLD,
     CONVICTION_DECAY_FLOOR,
     CONVICTION_DECAY_SECONDS,
+    EARLY_WINDOW_TP_PCT,
+    EDGE_THRESHOLD,
+    ENTRY_WINDOW_END,
+    ENTRY_WINDOW_START,
+    EXIT_REVERSE_SIGNAL,
+    EXIT_STOP_LOSS_PCT,
+    EXIT_TIME_SECONDS,
+    EXIT_TP1_FRACTION,
+    EXIT_TP1_PCT,
+    EXIT_TRAIL_PCT,
+    FORCE_INTERVAL_TRADES,
+    HEDGE_ENABLED,
+    HEDGE_FRACTION,
+    HIGH_CONVICTION_ENTRY_THRESHOLD,
     HIGH_CONVICTION_MIN_ELAPSED_SECONDS,
     HIGH_CONVICTION_SL_PCT,
     HIGH_CONVICTION_TIME_EXIT,
     HIGH_CONVICTION_TIME_EXTENSION_SECONDS,
-    MOMENTUM_SL_VELOCITY_PCT,
-    MOMENTUM_SL_VELOCITY_WINDOW,
-    EARLY_WINDOW_TP_PCT,
-    LATE_WINDOW_TP_PCT,
+    INTENT_RECON_ABORT_GRACE_SECONDS,
     LATE_WINDOW_THRESHOLD_SECONDS,
-    EXIT_TAKE_PROFIT_PCT,
-    EXIT_TP1_FRACTION,
-    EXIT_TP1_PCT,
-    EXIT_TRAIL_PCT,
-    EXIT_TIME_SECONDS,
-    LOW_CONVICTION_HARD_TIME_EXIT,
-    MIN_HOLD_SECONDS,
-    SL_CONFIRMATION_SECONDS,
-    SHADOW_MULTI_TRACK_EXECUTION,
-    SL_INSTANT_BREACH_PCT,
-    ENTRY_WINDOW_END,
-    ENTRY_WINDOW_START,
-    FORCE_INTERVAL_TRADES,
-    HEDGE_COOLDOWN_SECONDS,
-    HEDGE_ENABLED,
-    HEDGE_FRACTION,
-    LEDGER_FILE,
+    LATE_WINDOW_TP_PCT,
+    LEDGER_FILE_BOTH,
     LEDGER_FILE_CONVICTION,
     LEDGER_FILE_MISPRICING,
-    LEDGER_FILE_BOTH,
     LIVE_BALANCE_BUFFER_USDC,
-    LIVE_DRY_RUN,
     LIVE_FORCE_INTERVAL_TRADES,
     LIVE_HEDGE_ENABLED,
     LIVE_KILL_SWITCH_FILE,
-    INTENT_RECON_ABORT_GRACE_SECONDS,
     LIVE_MIN_AVAILABLE_USDC,
-    LIVE_REQUIRE_EMPTY_OPEN_ORDERS,
     LIVE_RECON_LOOKBACK_SECONDS,
+    LIVE_REQUIRE_EMPTY_OPEN_ORDERS,
     LIVE_STARTUP_CANCEL_ALL,
     LOG_LEVEL,
+    LOW_CONVICTION_HARD_TIME_EXIT,
     MAX_BET_USDC,
-    MAX_PRICE_FEED_DIVERGENCE_BPS,
     MAX_POSITIONS_PER_WINDOW,
+    MAX_PRICE_FEED_DIVERGENCE_BPS,
     MIN_BET_USDC,
     MIN_HEALTHY_PRICE_FEEDS,
+    MIN_HOLD_SECONDS,
     MIN_NET_EXPECTED_PROFIT_USDC,
     MODEL_C_CALIBRATION_FILE,
-    POLYMARKET_BOOK_STALE_THRESHOLD_SECONDS,
+    MOMENTUM_SL_VELOCITY_PCT,
+    MOMENTUM_SL_VELOCITY_WINDOW,
     POLYMARKET_API_KEY,
+    POLYMARKET_BOOK_STALE_THRESHOLD_SECONDS,
     POLYMARKET_FUNDER,
     POLYMARKET_PASSPHRASE,
     POLYMARKET_PRIVATE_KEY,
     POLYMARKET_SECRET,
     POLYMARKET_SIGNATURE_TYPE,
+    PRICE_STALE_THRESHOLD_SECONDS,
     RUNTIME_STATUS_FILE,
     RUNTIME_STATUS_UPDATE_SECONDS,
-    SNIPE_HARD_DEADLINE_SECONDS,
+    SHADOW_MULTI_TRACK_EXECUTION,
+    SL_CONFIRMATION_SECONDS,
+    SL_INSTANT_BREACH_PCT,
     SNIPE_EARLY_ENTRY_SECONDS,
-    SNIPE_MIN_CONFIDENCE,
+    SNIPE_HARD_DEADLINE_SECONDS,
     SNIPE_POLL_SECONDS,
-    SNIPE_SPIKE_CONFIDENCE_DELTA,
     SNIPE_START_SECONDS,
     STARTING_BANKROLL_USDC,
     TARGET_ASSET,
     UNRESOLVED_SWEEP_INTERVAL_SECONDS,
-    PRICE_STALE_THRESHOLD_SECONDS,
     validate_config,
 )
 from feeds.binance import (
@@ -125,32 +114,76 @@ from market.kalshi import get_btc_yes_probability
 from market.orderer import (
     AmbiguousOrderError,
     BookSnapshot,
+    Orderer,
     OrderResult,
     OrderStatus,
-    Orderer,
 )
 from ops.alerts import AlertManager
 from ops.live_startup import (
     IntentReconciliationResult,
     LivePreflightResult,
     LiveReconciliationResult,
+)
+from ops.live_startup import (
     perform_live_preflight as _perform_live_preflight,
+)
+from ops.live_startup import (
     reconcile_live_ledger as _reconcile_live_ledger,
+)
+from ops.live_startup import (
     reconcile_open_order_intents as _reconcile_open_order_intents,
 )
+from ops.lock import process_lock
 from ops.resolution import (
     fetch_binance_agg_trade_price as _fetch_binance_agg_trade_price,
+)
+from ops.resolution import (
     resolve_market_outcome as _resolve_market_outcome,
+)
+from ops.resolution import (
     resolve_with_binance as _resolve_with_binance,
+)
+from ops.resolution import (
     sweep_unresolved_trades_once as _sweep_unresolved_trades_once,
+)
+from ops.resolution import (
     wait_for_market_resolution as _wait_for_market_resolution,
 )
-from ops.lock import process_lock
 from persistence.ledger import Ledger
 from risk.guard import DailyGuard
-from risk.sizing import fixed_size, get_bet_size, plan_position_sizes
-from state import BotState, ExitReason, Position, PositionStatus, WindowPhase, WindowState
-from state.track import ModelTrack, TRACK_COLORS, TRACK_CSS_COLORS
+from risk.sizing import get_bet_size, plan_position_sizes
+from state import BotState, ExitReason, Position, WindowPhase, WindowState
+from state.track import TRACK_COLORS, TRACK_CSS_COLORS, ModelTrack
+from strategy.entry_helpers import (
+    BookAssessment,
+)
+from strategy.entry_helpers import (
+    assess_book_quality_for_regime as _assess_book_quality_for_regime,
+)
+from strategy.entry_helpers import (
+    book_price_spread as _book_price_spread,
+)
+from strategy.entry_helpers import (
+    choose_better_signal as _choose_better_signal,
+)
+from strategy.entry_helpers import (
+    estimate_trade_fee_usdc as _estimate_trade_fee_usdc,
+)
+from strategy.entry_helpers import (
+    evaluate_trade_economics as _evaluate_trade_economics,
+)
+from strategy.entry_helpers import (
+    scaled_net_profit_floor_usdc as _scaled_net_profit_floor_usdc,
+)
+from strategy.entry_helpers import (
+    score_signal as _score_signal,
+)
+from strategy.entry_helpers import (
+    should_enter_on_waiting_conviction as _should_enter_on_waiting_conviction,
+)
+from strategy.entry_helpers import (
+    should_fire_snipe_signal as _should_fire_snipe_signal,
+)
 from strategy.probability import (
     ModelContext,
     bucket_acceleration,
@@ -162,20 +195,7 @@ from strategy.probability import (
     build_model_c_bucket_key,
     get_probability,
 )
-from strategy.entry_helpers import (
-    BookAssessment,
-    assess_book_quality_for_regime as _assess_book_quality_for_regime,
-    book_price_spread as _book_price_spread,
-    choose_better_signal as _choose_better_signal,
-    estimate_trade_fee_usdc as _estimate_trade_fee_usdc,
-    evaluate_trade_economics as _evaluate_trade_economics,
-    scaled_net_profit_floor_usdc as _scaled_net_profit_floor_usdc,
-    score_signal as _score_signal,
-    should_enter_on_waiting_conviction as _should_enter_on_waiting_conviction,
-    should_fire_snipe_signal as _should_fire_snipe_signal,
-)
-from strategy.signal import build_hedge_signal, compute_sl_confirmation_seconds, evaluate_with_diagnostics
-
+from strategy.signal import compute_sl_confirmation_seconds, evaluate_with_diagnostics
 
 LOGGER = logging.getLogger("bot")
 ALERTER: AlertManager | None = None
@@ -405,7 +425,11 @@ def create_position_from_trade(
         time_exit = base_time_exit
         if weak_entry:
             time_exit = max(3, base_time_exit - 2)
-    hard_time_exit = None if is_high_conviction else (LOW_CONVICTION_HARD_TIME_EXIT if trade_number < 3 else None)
+    hard_time_exit = (
+        None
+        if is_high_conviction
+        else (LOW_CONVICTION_HARD_TIME_EXIT if trade_number < 3 else None)
+    )
     if weak_entry and hard_time_exit is not None and time_exit is not None:
         hard_time_exit = min(hard_time_exit, max(time_exit + 4, 8))
 
@@ -489,7 +513,6 @@ async def check_position_exits(
 
         exit_reason: ExitReason | None = None
         exit_price: float | None = None
-        exit_fee_rate_bps: int = 0
         resting_fill = False  # True when a resting GTC order filled (no extra sell needed)
         filled_exit_result: OrderResult | None = None
 
@@ -503,7 +526,6 @@ async def check_position_exits(
                     if sl_status.status == OrderStatus.FILLED:
                         exit_reason = ExitReason.STOP_LOSS
                         exit_price = sl_status.avg_price or position.stop_loss_price
-                        exit_fee_rate_bps = sl_status.fee_rate_bps
                         resting_fill = True
                         filled_exit_result = sl_status
                         if position.tp_order_id:
@@ -520,7 +542,6 @@ async def check_position_exits(
                     if tp_status.status == OrderStatus.FILLED:
                         exit_reason = ExitReason.TAKE_PROFIT
                         exit_price = tp_status.avg_price or position.take_profit_price
-                        exit_fee_rate_bps = tp_status.fee_rate_bps
                         resting_fill = True
                         filled_exit_result = tp_status
                         if position.sl_order_id:
@@ -664,7 +685,8 @@ async def check_position_exits(
                     continue
                 if filled_exit_result.status not in {OrderStatus.FILLED, OrderStatus.PARTIAL}:
                     raise RuntimeError(
-                        f"Exit order {filled_exit_result.order_id} ended in unexpected state {filled_exit_result.status.value}"
+                        f"Exit order {filled_exit_result.order_id} ended in "
+                        f"unexpected state {filled_exit_result.status.value}"
                     )
                 exit_price = (
                     filled_exit_result.avg_price
@@ -672,7 +694,6 @@ async def check_position_exits(
                     or exit_price
                     or position.entry_price
                 )
-                exit_fee_rate_bps = filled_exit_result.fee_rate_bps
                 closed_notional_usdc = _filled_amount_usdc(
                     filled_exit_result,
                     position.remaining_size_usdc,
@@ -769,7 +790,7 @@ async def place_resting_exits(
     track: ModelTrack,
     *,
     window: WindowState,
-    position: "Position",
+    position: Position,
     asset: str,
 ) -> None:
     """Place GTC resting sell orders at SL and TP prices immediately after entry.
@@ -1256,7 +1277,9 @@ def should_enter_on_waiting_conviction(
     )
 
 
-def estimate_trade_fee_usdc(*, asset: str, market_price: float, bet_size: float, fee_rate_bps: int = 0) -> float:
+def estimate_trade_fee_usdc(
+    *, asset: str, market_price: float, bet_size: float, fee_rate_bps: int = 0
+) -> float:
     return _estimate_trade_fee_usdc(
         asset=asset,
         market_price=market_price,
@@ -1646,7 +1669,10 @@ async def _evaluate_track(
 def format_model_signal(stats: RuntimeStats) -> str:
     if stats.last_signal_direction == "-" or stats.last_signal_edge is None:
         return "-"
-    return f"{stats.last_signal_direction} e{stats.last_signal_edge:.3f} p{stats.last_signal_market_price:.3f}"
+    return (
+        f"{stats.last_signal_direction} e{stats.last_signal_edge:.3f} "
+        f"p{stats.last_signal_market_price:.3f}"
+    )
 
 
 def format_model_order(stats: RuntimeStats) -> str:
@@ -1684,7 +1710,10 @@ def render_multi_dashboard(runtimes: list[ModelRuntime]) -> str:
         else "n/a"
     )
     active_slug = next((runtime.stats.window_slug for runtime in runtimes if runtime.stats.window_slug), "-")
-    active_phase = next((runtime.stats.window_phase for runtime in runtimes if runtime.stats.window_phase != "-"), "-")
+    active_phase = next(
+        (runtime.stats.window_phase for runtime in runtimes if runtime.stats.window_phase != "-"),
+        "-",
+    )
     active_remaining = next(
         (
             runtime.stats.seconds_remaining
@@ -1706,7 +1735,8 @@ def render_multi_dashboard(runtimes: list[ModelRuntime]) -> str:
             "Market    "
             f"{active_slug} | Phase {active_phase} | "
             f"T-{active_remaining if active_remaining is not None else '-'}s | "
-            f"Price {format_price(primary.state.btc_price if primary.state.btc_price_updated_ts else None)} | "
+            "Price "
+            f"{format_price(primary.state.btc_price if primary.state.btc_price_updated_ts else None)} | "
             f"Age {price_age} | Source {primary.state.price_source or '-'}",
             width,
         ),
@@ -1717,7 +1747,8 @@ def render_multi_dashboard(runtimes: list[ModelRuntime]) -> str:
         ),
         sub_divider,
         fit_text(
-            "Model Phase       T-   Signal               Order            Result   Trades  W/L   PnL        Bank       Avail      Risk",
+            "Model Phase       T-   Signal               Order            Result   Trades "
+            "W/L   PnL        Bank       Avail      Risk",
             width,
         ),
         sub_divider,
@@ -1965,7 +1996,6 @@ def build_runtime_status(
     - Legacy: build_runtime_status(runtimes: list[ModelRuntime])
     - Multi-track: build_runtime_status(tracks: list[ModelTrack], shared_state: BotState, engine_scores: dict)
     """
-    from state.track import ModelTrack  # local import to avoid circular refs at module level
 
     if shared_state is not None:
         # New multi-track signature
@@ -2000,7 +2030,6 @@ def _build_runtime_status_multi_track(
     next_window_secs = (300 - (int(now) % 300)) if secs_remaining <= 0 else 0
 
     active_tracks = [t for t in tracks if t.active]
-    active_track = active_tracks[0] if active_tracks else tracks[-1]
     if len(active_tracks) == 1:
         active_track_name = active_tracks[0].name
     elif len(active_tracks) > 1 and all(t.orderer.dry_run for t in active_tracks):
@@ -2049,10 +2078,14 @@ def _build_runtime_status_multi_track(
         all_open_positions_payload = []
         for pos in open_positions:
             if pos.direction == "UP":
-                cur_price = (track.stats.current_up_bid or pos.entry_price) if track.stats else pos.entry_price
+                cur_price = (
+                    (track.stats.current_up_bid or pos.entry_price) if track.stats else pos.entry_price
+                )
                 ask_price = track.stats.current_up_ask if track.stats else None
             else:
-                cur_price = (track.stats.current_down_bid or pos.entry_price) if track.stats else pos.entry_price
+                cur_price = (
+                    (track.stats.current_down_bid or pos.entry_price) if track.stats else pos.entry_price
+                )
                 ask_price = track.stats.current_down_ask if track.stats else None
             all_open_positions_payload.append({
                 "direction": pos.direction,
@@ -2104,9 +2137,13 @@ def _build_runtime_status_multi_track(
             if t.status == "OPEN" and t.order_id in open_pos_by_id:
                 pos = open_pos_by_id[t.order_id]
                 if pos.direction == "UP":
-                    cur = (track.stats.current_up_bid or pos.entry_price) if track.stats else pos.entry_price
+                    cur = (
+                        (track.stats.current_up_bid or pos.entry_price) if track.stats else pos.entry_price
+                    )
                 else:
-                    cur = (track.stats.current_down_bid or pos.entry_price) if track.stats else pos.entry_price
+                    cur = (
+                        (track.stats.current_down_bid or pos.entry_price) if track.stats else pos.entry_price
+                    )
                 row["live_pnl"] = round(pos.calculate_unrealized_pnl(cur), 4)
                 row["live_pnl_pct"] = round(pos.unrealized_pnl_pct(cur) * 100, 2)
                 row["current_price"] = round(cur, 3)
@@ -2151,7 +2188,9 @@ def _build_runtime_status_multi_track(
         "total_pnl": total_pnl,
         "engine_scores": engine_scores,
         "freshness": {
-            "btc_price_age_seconds": round(btc_price_age_seconds, 1) if btc_price_age_seconds is not None else None,
+            "btc_price_age_seconds": (
+                round(btc_price_age_seconds, 1) if btc_price_age_seconds is not None else None
+            ),
             "btc_price_stale": shared_state.is_price_stale(),
             "btc_price_source": shared_state.price_source or "",
             "btc_price_quorum_met": shared_state.price_feed_quorum_met(now=now),
@@ -2175,8 +2214,14 @@ def _build_runtime_status_multi_track(
             # active_track would always return null when active_track != BOTH.
             "up_ask": next((t.stats.current_up_ask for t in tracks if t.name == "BOTH" and t.stats), None),
             "up_bid": next((t.stats.current_up_bid for t in tracks if t.name == "BOTH" and t.stats), None),
-            "down_ask": next((t.stats.current_down_ask for t in tracks if t.name == "BOTH" and t.stats), None),
-            "down_bid": next((t.stats.current_down_bid for t in tracks if t.name == "BOTH" and t.stats), None),
+            "down_ask": next(
+                (t.stats.current_down_ask for t in tracks if t.name == "BOTH" and t.stats),
+                None,
+            ),
+            "down_bid": next(
+                (t.stats.current_down_bid for t in tracks if t.name == "BOTH" and t.stats),
+                None,
+            ),
         },
     }
 
@@ -2989,7 +3034,8 @@ async def select_snipe_signals(
                     reason_code = "NET_PROFIT_TOO_LOW"
                     reason_detail = (
                         f"Net expected profit ${net_expected_profit_usdc:.2f} below "
-                        f"${min_net_profit_required:.2f} (scaled floor, spread pctile {spread_penalty_pctile:.2f}) "
+                        f"${min_net_profit_required:.2f} (scaled floor, "
+                        f"spread pctile {spread_penalty_pctile:.2f}) "
                         f"after est costs ${total_cost_estimate:.2f}"
                     )
                     candidate_signal = None
@@ -3032,9 +3078,14 @@ async def select_snipe_signals(
                     selected_signal = None
                 else:
                     reason_code = "READY"
+                    book_spread = (
+                        book_assessment.combined_spread
+                        if book_assessment.combined_spread is not None
+                        else "-"
+                    )
                     reason_detail = (
                         f"Book ready | score={book_assessment.liquidity_score:.3f} "
-                        f"spread={book_assessment.combined_spread if book_assessment.combined_spread is not None else '-'} "
+                        f"spread={book_spread} "
                         f"net=${selected_net_profit:.2f} min=${selected_min_net_profit:.2f}"
                     )
                     regime_candidate = (
@@ -3116,7 +3167,11 @@ async def select_snipe_signals(
                 reason_code=reason_code,
                 reason_detail=reason_detail,
                 would_trade=selected_signal is not None and not track_skip_reason,
-                skip_reason="" if selected_signal is not None and not track_skip_reason else track_skip_reason or reason_code,
+                skip_reason=(
+                    ""
+                    if selected_signal is not None and not track_skip_reason
+                    else track_skip_reason or reason_code
+                ),
                 entry_regime=logged_signal.entry_regime if logged_signal is not None else "",
                 market_price=logged_signal.market_price if logged_signal is not None else None,
                 up_price=up_price,
@@ -3134,7 +3189,11 @@ async def select_snipe_signals(
                 direction_probability=logged_signal.confidence if logged_signal is not None else None,
                 strongest_side=selection_strongest_side,
                 market_conviction=model_context.market_conviction,
-                btc_confirmed=logged_signal.btc_confirmed if logged_signal is not None else (model_context.btc_poly_agreement > 0),
+                btc_confirmed=(
+                    logged_signal.btc_confirmed
+                    if logged_signal is not None
+                    else (model_context.btc_poly_agreement > 0)
+                ),
                 seconds_remaining=seconds_remaining,
                 btc_price=state.btc_price,
                 open_price=window.open_price,
@@ -3428,7 +3487,8 @@ async def submit_trade(
             track.stats.last_order_id = result.order_id or ""
             track.stats.last_market_slug = market_slug
             track.stats.note(
-                f"Submitted {signal.direction.value} ${amount_usdc:.2f} @ {signal.market_price:.3f}; awaiting fill"
+                f"Submitted {signal.direction.value} ${amount_usdc:.2f} @ "
+                f"{signal.market_price:.3f}; awaiting fill"
             )
         fill_result = await track.orderer.wait_for_fill(
             result.order_id,
@@ -3657,7 +3717,6 @@ async def trading_loop(
     orderer = both_track.orderer
     model = both_track.model
     stats = both_track.stats
-    ledger = both_track.ledger
 
     force_interval_trades = force_interval_trades_enabled(live_mode=live_mode)
     last_window_end_ts: int | None = None
@@ -3688,7 +3747,11 @@ async def trading_loop(
                         await asyncio.to_thread(track.orderer.cancel_all)
             return
 
-        if shared_state.current_window is None or shared_state.current_window.get_phase(int(time.time())) == WindowPhase.EXPIRED:
+        expired = (
+            shared_state.current_window is None
+            or shared_state.current_window.get_phase(int(time.time())) == WindowPhase.EXPIRED
+        )
+        if expired:
             # Close any open positions on the expired window before moving on
             # (check each track's own window state)
             for track in tracks:
@@ -3742,7 +3805,9 @@ async def trading_loop(
                             won=realized_pnl > 0,
                         )
                         if track.stats is not None:
-                            track.stats.note(f"Window close exit | {pos.direction} | PnL: ${realized_pnl:+.2f}")
+                            track.stats.note(
+                                f"Window close exit | {pos.direction} | PnL: ${realized_pnl:+.2f}"
+                            )
                         LOGGER.info(
                             "[%s] Closed position %s on window expiry | %s | PnL: $%.2f",
                             track.name, pos.order_id, pos.direction, realized_pnl,
@@ -3816,7 +3881,11 @@ async def trading_loop(
             price_str = f"BTC ${shared_state.btc_price:,.0f}" if shared_state.btc_price > 0 else "BTC —"
             secs = window.seconds_remaining(now)
             mins, secs_r = divmod(secs, 60)
-            bar = f"── {ts_str} ──── WINDOW {time.strftime('%Y%m%d-%H:%M', time.localtime(window.start_ts))} | {price_str} | {mins}m {secs_r:02d}s "
+            bar = (
+                f"── {ts_str} ──── WINDOW "
+                f"{time.strftime('%Y%m%d-%H:%M', time.localtime(window.start_ts))} | "
+                f"{price_str} | {mins}m {secs_r:02d}s "
+            )
             bar = bar.ljust(90, "─")
             print(bar, flush=True)
 
@@ -3939,10 +4008,19 @@ async def trading_loop(
                 continue
             if stats is not None:
                 stats.last_regime_candidate = "LATE_CONVICTION"
+                up_display = (
+                    f"{up_book.best_ask:.3f}"
+                    if up_book and up_book.best_ask is not None
+                    else "-"
+                )
+                down_display = (
+                    f"{down_book.best_ask:.3f}"
+                    if down_book and down_book.best_ask is not None
+                    else "-"
+                )
                 stats.note(
                     f"Early conviction trigger | {early_reason} | "
-                    f"up={f'{up_book.best_ask:.3f}' if up_book and up_book.best_ask is not None else '-'} "
-                    f"down={f'{down_book.best_ask:.3f}' if down_book and down_book.best_ask is not None else '-'}"
+                    f"up={up_display} down={down_display}"
                 )
             waiting_conviction_active = True
             LOGGER.info(
@@ -3974,7 +4052,7 @@ async def trading_loop(
         # -- Generate shared market snapshot and independent per-track signals --
         engine_scores = compute_all_engine_scores(shared_state, window)
 
-        async def _check_exits_tick() -> None:
+        async def _check_exits_tick(window=window) -> None:
             """Run exit checks for all tracks on each snipe poll tick."""
             tick_up, tick_down = None, None
             with contextlib.suppress(Exception):
@@ -4490,7 +4568,8 @@ async def main() -> None:
                 write_runtime_status_file(final_status)
             for track in tracks:
                 LOGGER.info(
-                    "Session summary [%s]: trades=%s resolved=%s wins=%s losses=%s pnl=$%.2f bank=$%.2f avail=$%.2f",
+                    "Session summary [%s]: trades=%s resolved=%s wins=%s losses=%s "
+                    "pnl=$%.2f bank=$%.2f avail=$%.2f",
                     track.name,
                     track.state.total_trades,
                     track.state.wins + track.state.losses,

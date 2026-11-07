@@ -1,7 +1,7 @@
 import time
 
-from config import MIN_BET_USDC
 import risk.guard as guard_module
+from config import MIN_BET_USDC
 from risk.guard import DailyGuard
 from risk.sizing import fixed_size, get_bet_size, kelly_size, plan_position_sizes
 from state.position import Position, PositionStatus

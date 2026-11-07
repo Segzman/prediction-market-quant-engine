@@ -10,10 +10,12 @@ Uses the real signal engine (simulate_models.py core) with:
   - Exit model: low-conv (5s TP exit, 15s hard exit), high-conv (15s+ext time exit, 30% SL)
 Reports full P&L, win rate, avg win/loss, drawdown, and trade count.
 """
-import sys, pathlib
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-
 from __future__ import annotations
+
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 import math
 import random
@@ -21,13 +23,12 @@ import statistics
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from state.window import WindowState
-from strategy.signal import evaluate_with_diagnostics
 from strategy.probability import ModelContext
+from strategy.signal import evaluate_with_diagnostics
 
 # ── Config (mirrors config.py) ────────────────────────────────────────────────
 STAKE = 5.0               # MIN_BET = MAX_BET = $5
@@ -119,7 +120,9 @@ def simulate_price_path(rng: random.Random, open_price: float = 100.0, volatile:
     return path
 
 
-def market_asks(open_price: float, current_price: float, seconds_remaining: int, rng: random.Random) -> tuple[float, float]:
+def market_asks(
+    open_price: float, current_price: float, seconds_remaining: int, rng: random.Random
+) -> tuple[float, float]:
     """Synthetic Polymarket market prices, underreacting to BTC moves + noise."""
     move_pct = (current_price - open_price) / open_price
     time_factor = 1 - (seconds_remaining / SECONDS_PER_WINDOW)
@@ -187,7 +190,10 @@ def simulate_position_exit(
         # --- Hard time exit (low-conviction) ---
         if hard_exit_s and t >= hard_exit_s:
             won = current_contract_price > entry_price
-            pnl = stake * (current_contract_price / entry_price - 1) if won else -stake * (1 - current_contract_price / entry_price)
+            if won:
+                pnl = stake * (current_contract_price / entry_price - 1)
+            else:
+                pnl = -stake * (1 - current_contract_price / entry_price)
             return pnl, ("WIN_TIME" if won else "LOSS_TIME"), won
 
         # --- High-conviction time exit (with extension logic) ---
@@ -196,7 +202,10 @@ def simulate_position_exit(
                 time_exit_s += HIGH_CONV_TIME_EXT_S
             else:
                 won = current_contract_price > entry_price
-                pnl = stake * (current_contract_price / entry_price - 1) if won else -stake * (1 - current_contract_price / entry_price)
+                if won:
+                    pnl = stake * (current_contract_price / entry_price - 1)
+                else:
+                    pnl = -stake * (1 - current_contract_price / entry_price)
                 return pnl, ("WIN_TIME" if won else "LOSS_TIME"), won
 
         # --- Stop-loss (both) ---
@@ -256,9 +265,6 @@ def simulate_one_day(
             open_price=path[0],
         )
 
-        entry_elapsed: Optional[int] = None
-        traded_this_window = False
-
         for elapsed in range(10, SECONDS_PER_WINDOW - 5, ENTRY_EVAL_STEP):
             seconds_remaining = SECONDS_PER_WINDOW - elapsed
             current_price = path[elapsed]
@@ -297,7 +303,14 @@ def simulate_one_day(
                 + min(supporting_acceleration * 10, 0.08)
                 + 0.12  # assume liquid book
             ))
-            btc_poly_agreement = 1.0 if (strongest_side == "UP" and move_pct > 0) or (strongest_side == "DOWN" and move_pct < 0) else (-1.0 if move_pct != 0 else 0.0)
+            if (strongest_side == "UP" and move_pct > 0) or (
+                strongest_side == "DOWN" and move_pct < 0
+            ):
+                btc_poly_agreement = 1.0
+            elif move_pct != 0:
+                btc_poly_agreement = -1.0
+            else:
+                btc_poly_agreement = 0.0
 
             model_ctx = ModelContext(
                 up_price_momentum=up_momentum,
@@ -384,8 +397,6 @@ def simulate_one_day(
                 won=won,
             ))
 
-            traded_this_window = True
-            entry_elapsed = elapsed
             break  # one trade per window pass (re-evaluate at next step)
 
         sim_ts += SECONDS_PER_WINDOW
@@ -432,7 +443,10 @@ def report(days: list[DayStats], label: str, n_sessions: int) -> None:
         mean = statistics.mean(vals)
         worst = min(vals)
         best = max(vals)
-        print(f"  {label:<30} {fmt.format(med):>10}  {fmt.format(mean):>10}  {fmt.format(worst):>10}  {fmt.format(best):>10}")
+        print(
+            f"  {label:<30} {fmt.format(med):>10}  {fmt.format(mean):>10}  "
+            f"{fmt.format(worst):>10}  {fmt.format(best):>10}"
+        )
 
     row("Daily P&L ($)", total_pnls, "${:+.2f}")
     row("Trades/day", trades_per_day, "{:.0f}")
@@ -485,25 +499,31 @@ def detail_one_day(rng: random.Random, volatile: bool) -> None:
         low_conv = [t for t in log if t.entry_price < HIGH_CONVICTION_THRESHOLD]
         btc_confirmed = [t for t in log if t.btc_confirmed]
 
-        print(f"\n  Regime breakdown:")
+        print("\n  Regime breakdown:")
         print(f"    MISPRICING:      {len(mispricing)} trades, {sum(1 for t in mispricing if t.won)} wins")
         print(f"    LATE_CONVICTION: {len(late_conv)} trades, {sum(1 for t in late_conv if t.won)} wins")
-        print(f"\n  Conviction tier:")
+        print("\n  Conviction tier:")
         lc_wr = sum(1 for t in low_conv if t.won) / len(low_conv) if low_conv else 0
         hc_wr = sum(1 for t in high_conv if t.won) / len(high_conv) if high_conv else 0
-        print(f"    Low  (0.60-0.69): {len(low_conv)} trades, WR={lc_wr:.1%}, PnL=${sum(t.pnl for t in low_conv):+.2f}")
-        print(f"    High (0.70-0.92): {len(high_conv)} trades, WR={hc_wr:.1%}, PnL=${sum(t.pnl for t in high_conv):+.2f}")
+        print(
+            f"    Low  (0.60-0.69): {len(low_conv)} trades, WR={lc_wr:.1%}, "
+            f"PnL=${sum(t.pnl for t in low_conv):+.2f}"
+        )
+        print(
+            f"    High (0.70-0.92): {len(high_conv)} trades, WR={hc_wr:.1%}, "
+            f"PnL=${sum(t.pnl for t in high_conv):+.2f}"
+        )
         print(f"    BTC-confirmed:    {len(btc_confirmed)}/{len(log)}")
 
         exit_counts: dict[str, int] = {}
         for t in log:
             exit_counts[t.exit_reason] = exit_counts.get(t.exit_reason, 0) + 1
-        print(f"\n  Exit reason breakdown:")
+        print("\n  Exit reason breakdown:")
         for reason, count in sorted(exit_counts.items(), key=lambda x: -x[1]):
             pct = count / len(log) * 100
             print(f"    {reason:<20} {count:>4} ({pct:.0f}%)")
 
-        print(f"\n  Last 10 trades:")
+        print("\n  Last 10 trades:")
         for i, t in enumerate(log[-10:], 1):
             win_str = "WIN " if t.won else "LOSS"
             print(f"    {i:>2}. W{t.window_idx:>3} {t.direction:<4} {win_str} ${t.pnl:+.3f}  "

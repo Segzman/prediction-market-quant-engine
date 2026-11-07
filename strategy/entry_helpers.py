@@ -25,6 +25,7 @@ from market.orderer import BookSnapshot
 from risk.sizing import get_bet_size
 from state.session import BotState
 from state.window import WindowState
+from strategy.signal import Signal
 
 
 @dataclass
@@ -41,7 +42,7 @@ LIQUIDITY_RELAX_MAX_SIDE_SPREAD = 0.05
 LIQUIDITY_RELAX_MIN_ASK_RATIO = 0.70
 
 
-def score_signal(signal) -> tuple[float, float, float]:
+def score_signal(signal: Signal) -> tuple[float, float, float]:
     regime_bonus = 0.01 if getattr(signal, "entry_regime", "") == "MISPRICING" else 0.0
     return (
         abs(signal.edge) + regime_bonus,
@@ -50,7 +51,9 @@ def score_signal(signal) -> tuple[float, float, float]:
     )
 
 
-def choose_better_signal(best_signal, candidate_signal):
+def choose_better_signal(
+    best_signal: Signal | None, candidate_signal: Signal | None
+) -> Signal | None:
     if candidate_signal is None:
         return best_signal
     if best_signal is None:
@@ -59,10 +62,10 @@ def choose_better_signal(best_signal, candidate_signal):
 
 
 def should_fire_snipe_signal(
-    candidate_signal,
+    candidate_signal: Signal | None,
     *,
-    best_signal,
-    previous_signal,
+    best_signal: Signal | None,
+    previous_signal: Signal | None,
     seconds_remaining: int,
     force_trade: bool,
     liquidity_score: float,
@@ -196,10 +199,10 @@ def should_enter_on_waiting_conviction(
     strongest_side = str(features.get("strongest_side", "NONE"))
     strongest_price = 0.0
     strongest_snapshot = None
-    if strongest_side == "UP":
+    if strongest_side == "UP" and up_book is not None:
         strongest_price = float(up_book.best_ask or 0.0)
         strongest_snapshot = up_book
-    elif strongest_side == "DOWN":
+    elif strongest_side == "DOWN" and down_book is not None:
         strongest_price = float(down_book.best_ask or 0.0)
         strongest_snapshot = down_book
     if strongest_snapshot is None or strongest_snapshot.best_ask is None:
@@ -300,7 +303,9 @@ def scaled_net_profit_floor_usdc(spread_penalty_pctile: float) -> float:
     return MIN_NET_EXPECTED_PROFIT_USDC * (1.0 + 1.5 * pctile)
 
 
-def estimate_trade_fee_usdc(*, asset: str, market_price: float, bet_size: float, fee_rate_bps: int = 0) -> float:
+def estimate_trade_fee_usdc(
+    *, asset: str, market_price: float, bet_size: float, fee_rate_bps: int = 0
+) -> float:
     if bet_size <= 0 or market_price <= 0:
         return 0.0
     if fee_rate_bps > 0:
@@ -310,7 +315,7 @@ def estimate_trade_fee_usdc(*, asset: str, market_price: float, bet_size: float,
     return 0.0
 
 
-def estimate_expected_profit_usdc(signal, bet_size: float) -> float:
+def estimate_expected_profit_usdc(signal: Signal, bet_size: float) -> float:
     if bet_size <= 0 or MAX_BET_USDC <= 0:
         return 0.0
     return float(signal.ev) * (bet_size / MAX_BET_USDC)
@@ -338,7 +343,7 @@ def estimate_spread_penalty_usdc(
 def evaluate_trade_economics(
     *,
     asset: str,
-    signal,
+    signal: Signal,
     state: BotState,
     up_book: BookSnapshot | None,
     down_book: BookSnapshot | None,

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, date, datetime
 
 from config import (
     ALLOW_TRADING_WITHOUT_BTC_PRICE,
@@ -14,10 +13,10 @@ from config import (
     MAX_CONCURRENT_POSITIONS,
     MAX_DAILY_LOSS_USDC,
     MAX_OPEN_ORDERS,
-    MAX_UNRESOLVED_EXPOSURE_USDC,
-    MAX_TRADES_PER_DAY,
-    MAX_WINDOW_EXPOSURE_USDC,
     MAX_POSITIONS_PER_WINDOW,
+    MAX_TRADES_PER_DAY,
+    MAX_UNRESOLVED_EXPOSURE_USDC,
+    MAX_WINDOW_EXPOSURE_USDC,
 )
 from state.session import BotState
 
@@ -25,9 +24,9 @@ from state.session import BotState
 class DailyGuard:
     def __init__(self, state: BotState):
         self.state = state
-        self._reset_date: Optional[datetime.date] = datetime.now(timezone.utc).date()
+        self._reset_date: date | None = datetime.now(UTC).date()
 
-    def can_enter(self, direction: Optional[str] = None) -> tuple[bool, str]:
+    def can_enter(self, direction: str | None = None) -> tuple[bool, str]:
         """Check if trading is allowed. Optionally check for specific direction."""
         if self._should_reset_daily():
             self.state.reset_daily()
@@ -61,7 +60,10 @@ class DailyGuard:
         if unresolved_exposure >= MAX_UNRESOLVED_EXPOSURE_USDC:
             return False, f"Max unresolved exposure reached: ${unresolved_exposure:.2f}"
 
-        if self.state.current_window and self.state.current_window.total_exposure() >= MAX_WINDOW_EXPOSURE_USDC:
+        if (
+            self.state.current_window
+            and self.state.current_window.total_exposure() >= MAX_WINDOW_EXPOSURE_USDC
+        ):
             return (
                 False,
                 f"Max window exposure reached: ${self.state.current_window.total_exposure():.2f}",
@@ -79,7 +81,11 @@ class DailyGuard:
                 f"{CONSECUTIVE_LOSS_PAUSE_SECONDS - elapsed_since_trade:.0f}s remaining",
             )
 
-        active_cooldown = COOLDOWN_SECONDS if self.state.last_trade_high_conviction else LOW_CONVICTION_COOLDOWN_SECONDS
+        active_cooldown = (
+            COOLDOWN_SECONDS
+            if self.state.last_trade_high_conviction
+            else LOW_CONVICTION_COOLDOWN_SECONDS
+        )
         if self.state.last_trade_ts and elapsed_since_trade < active_cooldown:
             return (
                 False,
@@ -97,7 +103,7 @@ class DailyGuard:
         return True, ""
 
     def _should_reset_daily(self) -> bool:
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
         if self._reset_date != today:
             self._reset_date = today
             return True

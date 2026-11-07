@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import json
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from config import (
@@ -132,7 +132,7 @@ def _extract_event_list(payload: Any) -> list[dict]:
 
 
 def _iso_z(ts: float) -> str:
-    return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.fromtimestamp(ts, tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _book_levels(book: Any, side: str) -> list:
@@ -240,13 +240,13 @@ class PublicPolymarketClient:
         }
 
     def _get_json(self, url: str) -> Any:
-        import urllib.error
         import socket
+        import urllib.error
         request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         try:
             with urllib.request.urlopen(request, timeout=10) as response:
                 return json.load(response)
-        except (urllib.error.URLError, socket.gaierror, socket.timeout) as e:
+        except (TimeoutError, urllib.error.URLError, socket.gaierror) as e:
             import logging
             logging.getLogger("market.client").warning(f"API unreachable: {e}")
             raise RuntimeError(f"Polymarket API unavailable: {e}") from e
@@ -260,7 +260,7 @@ class PublicPolymarketClient:
             token_ids = json.loads(token_ids)
         tokens = [
             {"outcome": outcome, "token_id": token_id}
-            for outcome, token_id in zip(outcomes, token_ids)
+            for outcome, token_id in zip(outcomes, token_ids, strict=False)
         ]
         return {
             "market_slug": market.get("slug", ""),
@@ -280,7 +280,7 @@ class PublicPolymarketClient:
         # events; the currently-active 5-minute windows are reachable via the
         # date-filtered /events query. Query a band around now and filter again
         # in code (defense in depth against the API ignoring the date params).
-        now_dt = datetime.now(timezone.utc)
+        now_dt = datetime.now(UTC)
         now_ts = now_dt.timestamp()
         query = urllib.parse.urlencode(
             {

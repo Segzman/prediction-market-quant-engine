@@ -3,15 +3,17 @@
 Daily Trading Simulation - $1 Primary Bets
 Tests different win rates over a full day of trading (288 windows).
 """
-import sys, pathlib
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-
 from __future__ import annotations
 
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+
 import random
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable
 
 
 class Direction(Enum):

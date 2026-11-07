@@ -4,7 +4,7 @@ import argparse
 import json
 import math
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from strategy.probability import build_calibration_regime_key
@@ -105,11 +105,11 @@ def build_calibration(records: list[dict], *, min_samples: int) -> dict:
                     },
                 )(),
                 market_probability=float(
-                    (((record.get("details") or {}).get("calibration") or {}).get(
+                    ((record.get("details") or {}).get("calibration") or {}).get(
                         "market_implied_up_probability",
                         0.5,
                     )
-                    or 0.5)
+                    or 0.5
                 ),
             )
         )
@@ -184,7 +184,7 @@ def build_calibration(records: list[dict], *, min_samples: int) -> dict:
             }
 
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "min_bucket_samples": min_samples,
         "bucket_count": len(normalized),
         "regime_count": len(normalized_regimes),

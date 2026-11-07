@@ -11,7 +11,6 @@ import websockets
 from config import BINANCE_REST_SYMBOLS, BINANCE_SYMBOLS
 from state.session import BotState
 
-
 BINANCE_WS_BASE_URLS = (
     "wss://stream.binance.com:9443/ws",
     "wss://data-stream.binance.vision/ws",
@@ -131,7 +130,7 @@ class BinanceFeed:
                     while True:
                         try:
                             raw = await asyncio.wait_for(websocket.recv(), timeout=5.0)
-                        except asyncio.TimeoutError:
+                        except TimeoutError:
                             snapshot = await asyncio.to_thread(self._fetch_rest_snapshot)
                             if snapshot is None:
                                 continue

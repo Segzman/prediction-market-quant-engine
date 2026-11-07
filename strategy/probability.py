@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import json
 import math
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from statistics import NormalDist
-from dataclasses import dataclass
 
 from config import MODEL_C_MIN_BUCKET_SAMPLES, MOMENTUM_THRESHOLD
-
 
 # Shared instance: NormalDist is stateless, no need to rebuild per tick.
 _NORMAL_DIST = NormalDist()

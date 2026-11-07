@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from bot import (
-    assess_book_quality,
     DemoClient,
+    assess_book_quality,
     build_feature_snapshot,
     build_model_runtimes,
     build_runtime_status,
@@ -17,10 +17,10 @@ from bot import (
     hedge_enabled_for_mode,
     kill_switch_engaged,
     parse_model_names,
-    refresh_window_books,
-    reconcile_live_ledger,
-    resolve_with_binance,
     perform_live_preflight,
+    reconcile_live_ledger,
+    refresh_window_books,
+    resolve_with_binance,
     should_enter_on_waiting_conviction,
     should_fire_snipe_signal,
     sweep_unresolved_trades_once,
@@ -29,7 +29,7 @@ from bot import (
 from market.client import AccountSnapshot
 from market.orderer import BookSnapshot, OrderResult, OrderStatus
 from persistence.ledger import Ledger
-from state.position import ExitReason, Position, PositionStatus
+from state.position import Position, PositionStatus
 from state.session import BotState
 from state.types import Direction
 from state.window import WindowState
@@ -790,7 +790,6 @@ def test_estimate_trade_fee_usdc_uses_crypto_fallback():
 
 def test_build_model_tracks_returns_three_tracks(mock_client):
     from bot import build_model_tracks
-    from state.track import ModelTrack
     from config import ACTIVE_MODEL_TRACK, SHADOW_MULTI_TRACK_EXECUTION
 
     tracks = build_model_tracks(
@@ -878,10 +877,11 @@ def test_resolve_with_binance_uses_window_start_and_end_prices(monkeypatch):
 
 
 def test_compute_all_engine_scores_returns_dict_for_a_b_c(mock_client):
+    import time
+
     from bot import compute_all_engine_scores
     from state.session import BotState
     from state.window import WindowState
-    import time
 
     state = BotState(btc_price=83000.0)
     end_ts = ((int(time.time()) // 300) + 1) * 300
@@ -901,9 +901,10 @@ def test_compute_all_engine_scores_returns_dict_for_a_b_c(mock_client):
 
 def test_evaluate_track_skips_wrong_regime(mock_client):
     """CONVICTION_ONLY track must skip MISPRICING signals."""
-    from bot import build_model_tracks, _evaluate_track
-    from unittest.mock import MagicMock
     import asyncio
+    from unittest.mock import MagicMock
+
+    from bot import _evaluate_track, build_model_tracks
 
     tracks = build_model_tracks(client=mock_client, asset="BTC",
                                 mode_label="DRY_RUN", market_source="gamma", dry_run=True)
@@ -935,8 +936,9 @@ def test_evaluate_track_skips_wrong_regime(mock_client):
 
 
 def test_sweep_unresolved_uses_track_ledger(mock_client):
-    from bot import build_model_tracks, sweep_unresolved_trades_once
     from unittest.mock import MagicMock
+
+    from bot import build_model_tracks, sweep_unresolved_trades_once
 
     tracks = build_model_tracks(client=mock_client, asset="BTC",
                                 mode_label="DRY_RUN", market_source="gamma", dry_run=True)
@@ -980,9 +982,10 @@ def test_build_runtime_status_multi_track_schema(mock_client):
 
 def test_build_runtime_status_open_position_is_non_null(mock_client):
     """open_position payload must be populated when the track's current window has an open position."""
-    from bot import build_model_tracks, build_runtime_status
-    from state.position import Position, PositionStatus
     import time as _time
+
+    from bot import build_model_tracks, build_runtime_status
+    from state.position import Position
 
     tracks = build_model_tracks(
         client=mock_client,
@@ -1129,9 +1132,10 @@ def test_build_runtime_status_marks_book_idle_after_window_close(mock_client):
 
 def test_evaluate_track_enters_matching_regime(mock_client):
     """CONVICTION_ONLY track must enter on LATE_CONVICTION signal when guard allows."""
-    from bot import build_model_tracks, _evaluate_track
-    from unittest.mock import MagicMock, patch
     import asyncio
+    from unittest.mock import MagicMock, patch
+
+    from bot import _evaluate_track, build_model_tracks
 
     tracks = build_model_tracks(client=mock_client, asset="BTC",
                                 mode_label="DRY_RUN", market_source="gamma", dry_run=True)
@@ -1160,7 +1164,6 @@ def test_evaluate_track_enters_matching_regime(mock_client):
 
     conviction.guard.can_enter = MagicMock(return_value=(True, ""))
 
-    from unittest.mock import AsyncMock
     with patch("bot.submit_trade", new_callable=AsyncMock) as mock_submit:
         mock_submit.return_value = None
         asyncio.run(
@@ -1171,9 +1174,10 @@ def test_evaluate_track_enters_matching_regime(mock_client):
 
 
 def test_evaluate_track_conviction_reentry_needs_stronger_confirmation(mock_client):
-    from bot import build_model_tracks, _evaluate_track
-    from unittest.mock import AsyncMock, MagicMock, patch
     import asyncio
+    from unittest.mock import MagicMock, patch
+
+    from bot import _evaluate_track, build_model_tracks
 
     tracks = build_model_tracks(
         client=mock_client,
@@ -1456,7 +1460,9 @@ def test_select_snipe_signals_logs_skip_reason_for_rejected_track(mock_client, m
     assert candidates[-1]["would_trade"] is False
 
 
-def test_select_snipe_signals_marks_regime_filtered_candidate_as_not_tradeable(mock_client, monkeypatch, tmp_path):
+def test_select_snipe_signals_marks_regime_filtered_candidate_as_not_tradeable(
+    mock_client, monkeypatch, tmp_path
+):
     import bot
     from bot import build_model_tracks, select_snipe_signals
 
@@ -1664,8 +1670,9 @@ def test_select_snipe_signals_marks_stale_polymarket_book(mock_client, monkeypat
 
 
 def test_submit_trade_cancelled_entry_does_not_open_position(mock_client, tmp_path, monkeypatch):
+    from unittest.mock import MagicMock
+
     from bot import build_model_tracks, submit_trade
-    from unittest.mock import AsyncMock, MagicMock
 
     monkeypatch.setattr("bot.ACTIVE_MODEL_TRACK", "BOTH")
     tracks = build_model_tracks(
@@ -1717,8 +1724,9 @@ def test_submit_trade_cancelled_entry_does_not_open_position(mock_client, tmp_pa
 
 
 def test_submit_trade_partial_fill_creates_partial_exposure(mock_client, tmp_path, monkeypatch):
+    from unittest.mock import MagicMock
+
     from bot import build_model_tracks, submit_trade
-    from unittest.mock import AsyncMock, MagicMock
 
     monkeypatch.setattr("bot.ACTIVE_MODEL_TRACK", "BOTH")
     tracks = build_model_tracks(
@@ -1779,8 +1787,9 @@ def test_submit_trade_partial_fill_creates_partial_exposure(mock_client, tmp_pat
 
 
 def test_check_position_exits_exit_failure_keeps_position_open(mock_client, tmp_path, monkeypatch):
-    from bot import build_model_tracks, check_position_exits
     from unittest.mock import MagicMock
+
+    from bot import build_model_tracks, check_position_exits
 
     monkeypatch.setattr("bot.ACTIVE_MODEL_TRACK", "BOTH")
     tracks = build_model_tracks(
@@ -1830,7 +1839,7 @@ def test_check_position_exits_exit_failure_keeps_position_open(mock_client, tmp_
 
 def test_track_entry_skip_reason_emits_guard_breach_alert(mock_client, monkeypatch):
     import bot
-    from bot import SnipeSelection, build_model_tracks, _track_entry_skip_reason
+    from bot import SnipeSelection, _track_entry_skip_reason, build_model_tracks
 
     tracks = build_model_tracks(
         client=mock_client,
@@ -1861,7 +1870,11 @@ def test_track_entry_skip_reason_emits_guard_breach_alert(mock_client, monkeypat
         seconds_remaining=90,
         model_context=None,
     )
-    monkeypatch.setattr(track.guard, "can_enter", MagicMock(return_value=(False, "Max open orders reached: 3")))
+    monkeypatch.setattr(
+        track.guard,
+        "can_enter",
+        MagicMock(return_value=(False, "Max open orders reached: 3")),
+    )
 
     with patch.object(bot, "emit_alert_throttled") as mock_alert:
         reason = _track_entry_skip_reason(track, selection, window=window)

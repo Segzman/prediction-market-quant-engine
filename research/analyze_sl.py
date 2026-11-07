@@ -3,14 +3,15 @@
 Stop-Loss Strategy Simulation
 Analyzes all trading log files and compares 3 SL strategies.
 """
-import sys, pathlib
+import pathlib
+import sys
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-import re
 import glob
 import os
+import re
 from collections import defaultdict
-from datetime import datetime
 
 LOG_DIR = ".web_runtime"
 BET_SIZE = 5.0  # dollars per trade
@@ -53,7 +54,7 @@ def parse_logs():
 
     for lf in log_files:
         try:
-            with open(lf, "r", errors="replace") as fh:
+            with open(lf, errors="replace") as fh:
                 for line in fh:
                     # ---- EXIT lines ----
                     m = EXIT_RE.match(line)
@@ -170,7 +171,6 @@ def compute_stats(trades):
 
     pnls = [t["sim_pnl"] for t in trades]
     wins = [p for p in pnls if p > 0]
-    losses = [p for p in pnls if p < 0]
 
     sl_trades = [t for t in trades if t["reason"] == "STOP_LOSS"]
     tp_trades = [t for t in trades if t["reason"] == "TAKE_PROFIT"]

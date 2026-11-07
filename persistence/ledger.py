@@ -4,8 +4,7 @@ import json
 import os
 import threading
 import time
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from config import LEDGER_FILE
 from state.types import Direction
@@ -29,7 +28,7 @@ class Ledger:
         edge: float,
         ev: float,
         model: str,
-        order_id: Optional[str],
+        order_id: str | None,
         dry_run: bool,
         market_url: str = "",
         market_slug: str = "",
@@ -371,7 +370,7 @@ class Ledger:
 
     def get_order_ids(self) -> set[str]:
         return {
-            record.get("order_id")
+            str(record.get("order_id"))
             for record in self._read_records()
             if record.get("order_id")
         }
@@ -444,7 +443,7 @@ class Ledger:
             )
         )
 
-    def get_daily_summary(self, date_str: Optional[str] = None) -> dict:
+    def get_daily_summary(self, date_str: str | None = None) -> dict:
         trades = self.get_all_trades()
         resolutions = self.get_all_resolutions()
         cancellations = self.get_all_cancellations()
@@ -453,10 +452,10 @@ class Ledger:
             if trades:
                 latest_trade = max(trades, key=lambda record: record["window_end_ts"])
                 target_date = datetime.fromtimestamp(
-                    latest_trade["window_end_ts"], tz=timezone.utc
+                    latest_trade["window_end_ts"], tz=UTC
                 ).date()
             else:
-                target_date = datetime.now(timezone.utc).date()
+                target_date = datetime.now(UTC).date()
             date_str = target_date.isoformat()
         else:
             target_date = datetime.fromisoformat(date_str).date()
@@ -465,7 +464,7 @@ class Ledger:
             trade
             for trade in trades
             if datetime.fromtimestamp(
-                trade["window_end_ts"], tz=timezone.utc
+                trade["window_end_ts"], tz=UTC
             ).date()
             == target_date
         ]
@@ -552,7 +551,7 @@ class Ledger:
 
     def _read_records(self) -> list[dict]:
         records: list[dict] = []
-        with open(self.filepath, "r", encoding="utf-8") as handle:
+        with open(self.filepath, encoding="utf-8") as handle:
             for line in handle:
                 line = line.strip()
                 if not line:
