@@ -51,7 +51,7 @@ Tracks select which regimes run: `CONVICTION_ONLY` (default), `MISPRICING_ONLY`,
 
 **Hedging.** An optional opposite-side leg (`HEDGE_FRACTION`, default 0.5) can be placed after a mispricing entry, with a cooldown and a loss cap. Late-conviction entries are not hedged unless explicitly allowed.
 
-**Optional second opinion.** `strategy/jev.py` can ask an external model to confirm BTC direction for contested or expensive entries. It is off by default and fails closed: any timeout or error keeps the deterministic decision.
+**Optional second opinion.** `strategy/jev.py` can ask an external AI model to confirm BTC direction on contested or expensive entries. Off by default and fail-closed; see [Experimenting with JEV](#experimenting-with-jev-an-ai-judgment-api).
 
 **Sizing** (`risk/sizing.py`).
 
@@ -59,6 +59,27 @@ Tracks select which regimes run: `CONVICTION_ONLY` (default), `MISPRICING_ONLY`,
 - Kelly (`USE_KELLY`, default off): `f* = (b·p - (1 - p)) / b` with `b = (1 - q) / q`, scaled by `KELLY_FRACTION` (0.5). When enabled it is an upper bound on the adaptive bet, not a replacement for it.
 
 **Exits.** Take-profit tiers (`EXIT_TP1_PCT`, `EXIT_TAKE_PROFIT_PCT`), stop-loss with confirmation and momentum-aware suppression, velocity stop, time exits by regime, and reverse-signal exit. Parameters live in `config.py`.
+
+## Experimenting with JEV (an AI judgment API)
+
+I wanted to try a newer kind of AI tooling: APIs that return a **typed judgment** about structured data instead of free-form chat text. JEV (TypeSafe's System One API, model `jev-latest`) takes a JSON `state` plus a named question with an answer type, and returns a typed answer, here a probability. I wired it in as an optional confirmation step to see whether that style of model could help on the hardest calls, without letting it put the engine at risk.
+
+**How it works** (`strategy/jev.py`, called from `strategy/signal.py`):
+
+1. The deterministic signal path computes the market's strongest side and a BTC/contract agreement check from tick move, directional consistency, acceleration, and contract price momentum.
+2. `resolve_btc_confirmation` only spends an API call when the answer could change the outcome: the deterministic check disagrees, or the entry is expensive (price above the late-conviction threshold). Cheap, uncontested entries never call out.
+3. `query_btc_agreement` sends those features as the `state` with one question, `btc_poly_agreement`: "does observed BTC movement corroborate the strongest side?" It asks for directional agreement, not a settlement probability.
+4. The returned probability confirms the entry only if it is at least `JEV_NOUL_MIN_PROBABILITY` (default 0.60).
+
+**Guardrails, because it is an external dependency in a latency-sensitive loop:**
+
+- **Off by default** (`JEV_NOUL_ENABLED=False`) and inert without `TYPESAFE_API_KEY`.
+- **Fail-closed:** any timeout (5 s default), transport error, or malformed answer returns `None`, and the engine keeps its deterministic decision.
+- **Cost and latency control:** a 15 second TTL cache keyed on bucketed inputs (time remaining in 5 s steps, rounded features), capped at 256 entries.
+- **Answer parsing** accepts numeric or boolean answers and clamps to [0, 1].
+- **Tests:** `tests/test_jev.py` covers the gating, the cache, and the fail-closed paths with the network mocked.
+
+**What I learned:** the integration pattern (gate, cache, fail closed, threshold) matters more than the model. Whether JEV improves decisions is not established; it has not been evaluated out of sample, so it stays an experiment and is not part of the core models (A, B, C, P), which are my own.
 
 ## Architecture
 
