@@ -164,6 +164,25 @@ python research/backtest_report.py   # writes docs/backtest_report.md
 - Run the suite with `python -m pytest -q`. It uses `pytest-asyncio` and `unittest.mock` for external services, so it needs no network access or credentials.
 - CI (`.github/workflows/ci.yml`) runs the suite on Python 3.13 with the pinned `requirements.lock`.
 
+## Development
+
+Requires Python 3.11 or newer. Install the runtime and development dependencies:
+
+```bash
+pip install -r requirements.txt
+pip install ruff mypy
+```
+
+Run the checks from the repository root:
+
+```bash
+ruff check .        # lint
+mypy                # type checks for strategy/, risk/, persistence/
+python -m pytest -q # test suite
+```
+
+Ruff is configured in `pyproject.toml` with rules E, F, I, B, and UP at line length 110. mypy uses the same file, with `disallow_untyped_defs` enabled for `strategy/`, `risk/`, and `persistence/`.
+
 ## Quick Start
 
 ```bash
