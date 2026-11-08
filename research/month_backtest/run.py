@@ -55,19 +55,18 @@ from config import (  # noqa: E402
     MIN_EXPECTED_PROFIT_USDC,
     POLYMARKET_FEATURE_LOOKBACK_SECONDS,
     VOLATILITY_MIN_SAMPLES,
-    WINDOW_DURATION_SECONDS,
 )
 from research import backtest_report as br  # noqa: E402
 from research.month_backtest import fetch  # noqa: E402
 from strategy import jev  # noqa: E402
 from strategy.probability import (  # noqa: E402
     ModelContext,
-    build_model_c_bucket_key,
     bucket_acceleration,
     bucket_directional_consistency,
     bucket_move_pct,
     bucket_probability,
     bucket_seconds_remaining,
+    build_model_c_bucket_key,
     get_probability,
 )
 

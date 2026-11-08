@@ -17,7 +17,6 @@ from research.month_backtest import fetch  # noqa: E402
 from research.month_backtest import run as mb  # noqa: E402
 from strategy.probability import get_probability  # noqa: E402
 
-
 # ---------------------------------------------------------------- fetch helpers
 
 
