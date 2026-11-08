@@ -31,21 +31,58 @@ def state(tmp_path):
     """Tiny paper run: 3 trades, 2 settled (one win, one loss), 1 open, plus JEV calls."""
     root = tmp_path / "state"
     trades = [
-        {"type": "trade", "ts": NOW - 3600, "window_end_ts": 100, "direction": "UP",
-         "amount_usdc": 5.0, "price": 0.60, "edge": 0.10, "order_id": "ord-secret-1",
-         "market_slug": "btc-up-100", "market_url": "https://example.test/x"},
-        {"type": "trade", "ts": NOW - 1800, "window_end_ts": 200, "direction": "DOWN",
-         "amount_usdc": 5.0, "price": 0.50, "edge": 0.05, "order_id": "ord-secret-2"},
-        {"type": "trade", "ts": NOW - 60, "window_end_ts": 300, "direction": "UP",
-         "amount_usdc": 5.0, "price": 0.55, "edge": 0.04, "order_id": "ord-open"},
+        {
+            "type": "trade",
+            "ts": NOW - 3600,
+            "window_end_ts": 100,
+            "direction": "UP",
+            "amount_usdc": 5.0,
+            "price": 0.60,
+            "edge": 0.10,
+            "order_id": "ord-secret-1",
+            "market_slug": "btc-up-100",
+            "market_url": "https://example.test/x",
+        },
+        {
+            "type": "trade",
+            "ts": NOW - 1800,
+            "window_end_ts": 200,
+            "direction": "DOWN",
+            "amount_usdc": 5.0,
+            "price": 0.50,
+            "edge": 0.05,
+            "order_id": "ord-secret-2",
+        },
+        {
+            "type": "trade",
+            "ts": NOW - 60,
+            "window_end_ts": 300,
+            "direction": "UP",
+            "amount_usdc": 5.0,
+            "price": 0.55,
+            "edge": 0.04,
+            "order_id": "ord-open",
+        },
     ]
     resolutions = [
         # UP at 0.60, resolved UP: win, pnl = 5 * (1/0.6 - 1)
-        {"type": "resolution", "ts": NOW - 3000, "order_id": "ord-secret-1",
-         "window_end_ts": 100, "resolved_up": True, "pnl": 5 * (1 / 0.60 - 1)},
+        {
+            "type": "resolution",
+            "ts": NOW - 3000,
+            "order_id": "ord-secret-1",
+            "window_end_ts": 100,
+            "resolved_up": True,
+            "pnl": 5 * (1 / 0.60 - 1),
+        },
         # DOWN at 0.50, resolved UP: loss
-        {"type": "resolution", "ts": NOW - 1000, "order_id": "ord-secret-2",
-         "window_end_ts": 200, "resolved_up": True, "pnl": -5.0},
+        {
+            "type": "resolution",
+            "ts": NOW - 1000,
+            "order_id": "ord-secret-2",
+            "window_end_ts": 200,
+            "resolved_up": True,
+            "pnl": -5.0,
+        },
     ]
     outcomes = [
         {"type": "window_outcome", "ts": NOW - 2900, "window_end_ts": 100, "resolved_up": True},
@@ -133,12 +170,28 @@ def test_bootstrap_ci_once_enough_trades(tmp_path):
     root = tmp_path / "state"
     records = []
     for i in range(25):
-        records.append({"type": "trade", "ts": NOW - 1000 + i, "window_end_ts": 1000 + i,
-                        "direction": "UP", "amount_usdc": 2.0, "price": 0.5, "edge": 0.1,
-                        "order_id": f"o{i}"})
-        records.append({"type": "resolution", "ts": NOW - 500 + i, "order_id": f"o{i}",
-                        "window_end_ts": 1000 + i, "resolved_up": i % 2 == 0,
-                        "pnl": 1.0 if i % 2 == 0 else -2.0})
+        records.append(
+            {
+                "type": "trade",
+                "ts": NOW - 1000 + i,
+                "window_end_ts": 1000 + i,
+                "direction": "UP",
+                "amount_usdc": 2.0,
+                "price": 0.5,
+                "edge": 0.1,
+                "order_id": f"o{i}",
+            }
+        )
+        records.append(
+            {
+                "type": "resolution",
+                "ts": NOW - 500 + i,
+                "order_id": f"o{i}",
+                "window_end_ts": 1000 + i,
+                "resolved_up": i % 2 == 0,
+                "pnl": 1.0 if i % 2 == 0 else -2.0,
+            }
+        )
     _write_jsonl(root / "ledgers" / "both.jsonl", records)
     summary = build_summary(root, NOW)
     low, high = summary["net_pnl_usdc"]["bootstrap95"]

@@ -18,7 +18,7 @@ import random
 import statistics
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -27,9 +27,7 @@ if str(ROOT) not in sys.path:
 
 from scripts.report_performance import estimate_crypto_taker_fee_usdc  # noqa: E402
 
-BANNER = (
-    "> **Paper trading only. No real money is at risk. This page makes no claim of edge.**"
-)
+BANNER = "> **Paper trading only. No real money is at risk. This page makes no claim of edge.**"
 HEARTBEAT_STALE_SECONDS = 120
 BOOTSTRAP_MIN_N = 20
 BOOTSTRAP_RESAMPLES = 2000
@@ -85,9 +83,7 @@ def wilson_interval(wins: int, n: int) -> tuple[float, float]:
 def bootstrap_sum_ci(values: list[float], seed: int = 0) -> tuple[float, float]:
     rng = random.Random(seed)
     n = len(values)
-    sums = sorted(
-        sum(rng.choice(values) for _ in range(n)) for _ in range(BOOTSTRAP_RESAMPLES)
-    )
+    sums = sorted(sum(rng.choice(values) for _ in range(n)) for _ in range(BOOTSTRAP_RESAMPLES))
     low = sums[int(0.025 * (len(sums) - 1))]
     high = sums[int(0.975 * (len(sums) - 1))]
     return (low, high)
@@ -135,7 +131,7 @@ def _load_jev(path: Path) -> tuple[list[dict], list[float]]:
 def _iso(epoch: float | None) -> str | None:
     if epoch is None:
         return None
-    return datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.fromtimestamp(epoch, tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def build_summary(state: Path, now: float) -> dict:
@@ -178,16 +174,17 @@ def build_summary(state: Path, now: float) -> dict:
         low, high = bootstrap_sum_ci(net_values)
         pnl_ci = [round(low, 4), round(high, 4)]
 
-    latencies = [
-        _num(r.get("latency_ms"))
-        for r in jev_records
-        if r.get("api_call") is True and _num(r.get("latency_ms")) is not None
-    ]
+    latencies: list[float] = []
+    for r in jev_records:
+        latency = _num(r.get("latency_ms"))
+        if r.get("api_call") is True and latency is not None:
+            latencies.append(latency)
     jev_calls = sum(1 for r in jev_records if r.get("api_call") is True)
 
     heartbeat = _num(status.get("generated_ts"))
     heartbeat_age = None if heartbeat is None else max(0.0, now - heartbeat)
-    freshness = status.get("freshness") if isinstance(status.get("freshness"), dict) else {}
+    raw_freshness = status.get("freshness")
+    freshness: dict = raw_freshness if isinstance(raw_freshness, dict) else {}
     feeds_healthy = (
         freshness.get("btc_price_quorum_met") is True
         and freshness.get("btc_price_stale") is False
@@ -227,9 +224,7 @@ def build_summary(state: Path, now: float) -> dict:
         "brier": {
             "n": len(briers_model),
             "model": round(statistics.fmean(briers_model), 4) if briers_model else None,
-            "market_baseline": round(statistics.fmean(briers_market), 4)
-            if briers_market
-            else None,
+            "market_baseline": round(statistics.fmean(briers_market), 4) if briers_market else None,
         },
         "jev": {
             "records": len(jev_records),
