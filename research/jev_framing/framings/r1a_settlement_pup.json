@@ -1,0 +1,8 @@
+{
+  "name": "r1a_settlement_pup",
+  "hypothesis": "Asking for settlement probability (P that BTC closes above the window open), then converting to agreement for the strongest side, is better calibrated than the agreement wording, because the label is the realized direction and the model may anchor less on the side framing.",
+  "question_type": "noul",
+  "answer_mode": "p_up",
+  "state_fields": ["seconds_remaining", "strongest_side", "tick_move_pct", "directional_consistency", "acceleration_pct", "up_price_momentum", "down_price_momentum"],
+  "instructions": "What is the probability that BTC finishes this 5-minute window above its opening price? Estimate it from the observed BTC tick move, tick direction, consistency and acceleration, and the contract price momentum. Answer as a probability between 0 and 1."
+}

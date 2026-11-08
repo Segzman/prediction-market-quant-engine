@@ -1,0 +1,9 @@
+{
+ "framing": "r0_production",
+ "states": 20,
+ "repeats": 3,
+ "mean_range": 0.03,
+ "max_range": 0.09,
+ "states_flipping_at_0.5": 0,
+ "states_flipping_at_0.60": 1
+}

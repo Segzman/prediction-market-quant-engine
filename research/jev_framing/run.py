@@ -86,6 +86,8 @@ def to_agreement(raw: float, side: str, answer_mode: str) -> float:
     raw = min(1.0, max(0.0, float(raw)))
     if answer_mode == "p_up":
         return raw if side == "UP" else 1.0 - raw
+    if answer_mode == "negated":
+        return 1.0 - raw
     return raw
 
 
@@ -168,6 +170,27 @@ def sample_evenly(items: list, n: int | None) -> list:
     if n is None or n >= len(items):
         return list(items)
     return [items[round(i * (len(items) - 1) / (n - 1))] for i in range(n)] if n > 1 else items[:1]
+
+
+def bootstrap_brier_diff(a: list[float], b: list[float], clusters: list, reps: int = 2000, seed: int = 7) -> tuple[float, float, float]:
+    """Paired cluster bootstrap (resampling windows) of mean squared-error difference a - b.
+    a, b: per-state squared errors; clusters: window id per state. Returns (point, lo95, hi95)."""
+    import random
+    rng = random.Random(seed)
+    groups: dict = {}
+    for ea, eb, c in zip(a, b, clusters):
+        groups.setdefault(c, []).append((ea, eb))
+    keys = list(groups)
+    point = (sum(a) - sum(b)) / len(a)
+    diffs = []
+    for _ in range(reps):
+        pick = [rng.choice(keys) for _ in keys]
+        num = sum(x for k in pick for x, _ in groups[k])
+        den = sum(y for k in pick for _, y in groups[k])
+        n = sum(len(groups[k]) for k in pick)
+        diffs.append((num - den) / n)
+    diffs.sort()
+    return point, diffs[int(0.025 * reps)], diffs[int(0.975 * reps) - 1]
 
 
 # ---------- I/O: key, cache, budget ----------
@@ -363,6 +386,26 @@ def cmd_variance(args) -> None:
     print(json.dumps(summary))
 
 
+def cmd_compare(args) -> None:
+    """Paired window-cluster bootstrap of Brier difference: candidate minus baseline."""
+    states = {s["id"]: s for s in load_states(args.split)}
+    base = json.loads((RESULTS / args.split / f"{args.baseline}.json").read_text())["rows"]
+    out = {}
+    for name in args.names:
+        cand = json.loads((RESULTS / args.split / f"{name}.json").read_text())["rows"]
+        ids = [r["id"] for r in cand if r["p"] is not None and any(b["id"] == r["id"] and b["p"] is not None for b in base)]
+        bmap = {b["id"]: b["p"] for b in base}
+        cmap = {r["id"]: r["p"] for r in cand}
+        ea = [(cmap[i] - (1.0 if states[i]["agree"] else 0.0)) ** 2 for i in ids]
+        eb = [(bmap[i] - (1.0 if states[i]["agree"] else 0.0)) ** 2 for i in ids]
+        clusters = [states[i]["window_end_ts"] for i in ids]
+        point, lo, hi = bootstrap_brier_diff(ea, eb, clusters)
+        out[name] = {"vs": args.baseline, "n": len(ids), "windows": len(set(clusters)),
+                     "brier_diff": round(point, 4), "ci95": [round(lo, 4), round(hi, 4)]}
+        print(json.dumps({"candidate": name} | out[name]))
+    return out
+
+
 def cmd_table(args) -> None:
     print("| split | framing | n | Brier | log loss | acc@0.5 | acc@0.60 | det agree | p50 ms | p95 ms | err | calls |")
     print("|---|---|---|---|---|---|---|---|---|---|---|---|")
@@ -393,6 +436,11 @@ def main(argv=None) -> None:
     p.add_argument("--states", type=int, default=20)
     p.add_argument("--repeats", type=int, default=3)
     p.set_defaults(fn=cmd_variance)
+    p = sub.add_parser("compare")
+    p.add_argument("split", choices=["dev", "holdout"])
+    p.add_argument("baseline")
+    p.add_argument("names", nargs="+")
+    p.set_defaults(fn=cmd_compare)
     p = sub.add_parser("table")
     p.set_defaults(fn=cmd_table)
     args = ap.parse_args(argv)

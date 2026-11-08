@@ -1,0 +1,8 @@
+{
+  "name": "r2a_negated",
+  "hypothesis": "Symmetry test: asking whether BTC movement CONTRADICTS the strongest side, then inverting, should give the same agreement as the direct wording. A large gap means the model is wording-sensitive, not judging the evidence.",
+  "question_type": "noul",
+  "answer_mode": "negated",
+  "state_fields": ["seconds_remaining", "strongest_side", "strongest_price", "tick_move_pct", "directional_consistency", "acceleration_pct", "up_price_momentum", "down_price_momentum"],
+  "instructions": "Does observed BTC movement contradict Polymarket's strongest side ({strongest_side})? {strongest_side} requires {direction_word} BTC movement, so answer high if BTC is moving against {strongest_side}. Weigh window direction against recent tick direction, consistency and acceleration, and whether contract movement works against that side. Judge directional contradiction, not settlement probability."
+}

@@ -1,0 +1,9 @@
+{
+ "framing": "r2c_neutral_wording",
+ "states": 20,
+ "repeats": 3,
+ "mean_range": 0.02,
+ "max_range": 0.04,
+ "states_flipping_at_0.5": 0,
+ "states_flipping_at_0.60": 0
+}

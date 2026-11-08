@@ -1,0 +1,8 @@
+{
+  "name": "r3a_negated_neutral",
+  "hypothesis": "Combine the two best round 2 changes: the contradiction question (symmetry, r2a) with the neutral wording (r2c) and market price. If the gains are additive, Brier should fall below 0.196.",
+  "question_type": "noul",
+  "answer_mode": "negated",
+  "state_fields": ["seconds_remaining", "strongest_side", "strongest_price", "tick_move_pct", "directional_consistency", "acceleration_pct", "up_price_momentum", "down_price_momentum"],
+  "instructions": "Given this 5-minute BTC window state, what is the probability that the BTC move and the contract prices do NOT point to {strongest_side}? The BTC move points {direction_word} when it is {direction_word} from the window open. Weigh window direction, recent tick direction, consistency and acceleration, and contract price movement."
+}

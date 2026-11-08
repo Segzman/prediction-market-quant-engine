@@ -1,0 +1,8 @@
+{
+  "name": "r1b_fewer_features",
+  "hypothesis": "Fewer features (only the BTC move, its consistency, and time left) reduce noise from the reconstructed momentum and acceleration terms, so the answer should track the realized direction better and be less extreme.",
+  "question_type": "noul",
+  "answer_mode": "agreement",
+  "state_fields": ["seconds_remaining", "strongest_side", "tick_move_pct", "directional_consistency"],
+  "instructions": "Does observed BTC movement corroborate Polymarket's strongest side ({strongest_side})? {strongest_side} requires {direction_word} BTC movement. Weigh window direction against recent tick direction, consistency and acceleration, and whether contract movement supports that side. Judge directional agreement, not settlement probability."
+}
