@@ -17,6 +17,16 @@ from state.session import BotState
 from state.window import WindowState
 
 
+@pytest.fixture(autouse=True)
+def isolate_jev_log(tmp_path, monkeypatch):
+    import strategy.jev as jev
+
+    monkeypatch.setattr(jev, "JEV_LOG_FILE", str(tmp_path / "jev_calls.jsonl"))
+    jev._cache.clear()
+    yield
+    jev._cache.clear()
+
+
 @pytest.fixture
 def sample_window() -> WindowState:
     end_ts = int(time.time()) + 120

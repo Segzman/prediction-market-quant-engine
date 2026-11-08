@@ -159,6 +159,8 @@ def _late_conviction_adjustment(
     market_price: float,
     seconds_remaining: int,
     model_context: ModelContext,
+    window_id: str | None = None,
+    window_end_ts: int | None = None,
 ) -> tuple[float, bool]:
     conviction = min(max(model_context.market_conviction, 0.0), 1.0)
 
@@ -186,6 +188,8 @@ def _late_conviction_adjustment(
         model_context,
         seconds_remaining=seconds_remaining,
         market_price=market_price,
+        window_id=window_id,
+        window_end_ts=window_end_ts,
     )
     if jev_confirmed is not None:
         btc_confirmed = jev_confirmed
@@ -360,6 +364,8 @@ def _evaluate_late_conviction_signal(
         market_price=market_price,
         seconds_remaining=seconds_remaining,
         model_context=model_context,
+        window_id=window.market_id,
+        window_end_ts=window.end_ts,
     )
     if adjustment <= 0:
         return SignalEvaluation(
