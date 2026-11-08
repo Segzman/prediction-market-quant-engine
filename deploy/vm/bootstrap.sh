@@ -135,6 +135,7 @@ clone_or_update() {
 SSH_DIR="$RUN_HOME/.ssh"
 LOGS_KEY="$SSH_DIR/pmqe_logs_ed25519"
 LOGS_SSH_CONFIG="$SSH_DIR/pmqe_logs_config"
+PUBLIC_KEY="$SSH_DIR/pmqe_public_ed25519"
 LOG_HOST="${PMQE_LOG_HOST:-$(hostname -s 2>/dev/null || hostname)}"
 
 ensure_logs_key() {
@@ -152,6 +153,23 @@ ensure_logs_key() {
   printf '\n[pmqe] ADD THIS AS A DEPLOY KEY WITH WRITE ACCESS\n'
   printf '[pmqe] repo: https://github.com/Segzman/pmqe-paper-logs/settings/keys\n'
   printf '[pmqe] %s\n\n' "$(cat "$LOGS_KEY.pub")"
+}
+
+ensure_public_key() {
+  mkdir -p "$SSH_DIR"
+  chmod 700 "$SSH_DIR" 2>/dev/null || true
+  if [ ! -f "$PUBLIC_KEY" ]; then
+    log "generating public status deploy key at $PUBLIC_KEY"
+    ssh-keygen -t ed25519 -N "" -C "pmqe-public@$LOG_HOST" -f "$PUBLIC_KEY" >/dev/null
+    chmod 600 "$PUBLIC_KEY"
+    chmod 644 "$PUBLIC_KEY.pub"
+  fi
+  if [ "$EUID" -eq 0 ] && [ "$RUN_USER" != "root" ]; then
+    chown -R "$RUN_USER:$RUN_GROUP" "$SSH_DIR" 2>/dev/null || true
+  fi
+  printf '\n[pmqe] ADD THIS AS A DEPLOY KEY WITH WRITE ACCESS (public status publish)\n'
+  printf '[pmqe] repo: https://github.com/Segzman/prediction-market-quant-engine/settings/keys\n'
+  printf '[pmqe] %s\n\n' "$(cat "$PUBLIC_KEY.pub")"
 }
 
 write_logs_ssh_config() {
@@ -208,6 +226,17 @@ write_logs_ssh_config() {
     printf '    HostName github.com\n'
     printf '    User git\n'
     printf '    IdentityFile %s\n' "$LOGS_KEY"
+    printf '    IdentitiesOnly yes\n'
+    printf '    StrictHostKeyChecking accept-new\n'
+    printf '    UserKnownHostsFile %s/known_hosts\n' "$SSH_DIR"
+    printf '    ConnectTimeout 15\n'
+    if [ -n "$proxy_line" ]; then
+      printf '%s\n' "$proxy_line"
+    fi
+    printf '\nHost pmqe-public-gh\n'
+    printf '    HostName github.com\n'
+    printf '    User git\n'
+    printf '    IdentityFile %s\n' "$PUBLIC_KEY"
     printf '    IdentitiesOnly yes\n'
     printf '    StrictHostKeyChecking accept-new\n'
     printf '    UserKnownHostsFile %s/known_hosts\n' "$SSH_DIR"
@@ -298,6 +327,7 @@ LOGS_BRANCH="${PMQE_LOGS_BRANCH:-main}"
 LOG_HOST="${PMQE_LOG_HOST:-$LOG_HOST}"
 
 ensure_logs_key
+ensure_public_key
 write_logs_ssh_config
 
 LOGS_READY=0
@@ -368,7 +398,7 @@ install_unit() {
 }
 
 for unit in pmqe-bot.service pmqe-web.service pmqe-heal.service pmqe-heal.timer \
-  pmqe-logsync.service pmqe-logsync.timer; do
+  pmqe-logsync.service pmqe-logsync.timer pmqe-publish.service pmqe-publish.timer; do
   if install_unit "$ROOT/deploy/vm/systemd/$unit" "$unit"; then
     UNIT_CHANGED=1
   fi
@@ -393,9 +423,10 @@ fi
 bash "$ROOT/deploy/vm/guard.sh"
 
 run_root systemctl daemon-reload
-run_root systemctl enable pmqe-bot.service pmqe-web.service pmqe-heal.timer pmqe-logsync.timer >/dev/null
+run_root systemctl enable pmqe-bot.service pmqe-web.service pmqe-heal.timer pmqe-logsync.timer pmqe-publish.timer >/dev/null
 run_root systemctl start pmqe-heal.timer
 run_root systemctl start pmqe-logsync.timer
+run_root systemctl start pmqe-publish.timer
 
 if [ "$UNIT_CHANGED" -eq 1 ] || [ "$VENV_CHANGED" -eq 1 ] || [ "$CODE_CHANGED" -eq 1 ]; then
   log "restarting services to apply changes"

@@ -26,7 +26,7 @@ TIMER_ACTIVE="unknown"
 LOG_TIMER_ACTIVE="unknown"
 
 if command -v systemctl >/dev/null 2>&1; then
-  for unit in pmqe-bot.service pmqe-web.service pmqe-heal.timer pmqe-logsync.timer; do
+  for unit in pmqe-bot.service pmqe-web.service pmqe-heal.timer pmqe-logsync.timer pmqe-publish.timer; do
     active="$(systemctl is-active "$unit" 2>/dev/null || true)"
     enabled="$(systemctl is-enabled "$unit" 2>/dev/null || true)"
     printf '  %-20s active=%s enabled=%s\n' "$unit" "${active:-unknown}" "${enabled:-unknown}"
@@ -129,6 +129,17 @@ if btc_stale is True or btc_quorum is False or (book_stale is True and book_idle
 print("  health: OK")
 PY
 HEALTH_RC=$?
+
+printf '\npublic status:\n'
+if [ -f "$STATE/publish_last_success" ]; then
+  printf '  last publish: %s (commit %s)\n' \
+    "$(sed -n '1p' "$STATE/publish_last_success")" "$(sed -n '3p' "$STATE/publish_last_success")"
+else
+  printf '  last publish: never\n'
+fi
+if [ -f "$STATE/publish_last_error" ]; then
+  printf '  last error: %s\n' "$(sed -n '2p' "$STATE/publish_last_error")"
+fi
 
 printf '\nrecent errors:\n'
 if command -v journalctl >/dev/null 2>&1; then

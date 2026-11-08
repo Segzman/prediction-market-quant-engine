@@ -1,0 +1,11 @@
+[Unit]
+Description=Publish PMQE public paper status every fifteen minutes
+
+[Timer]
+OnBootSec=7min
+OnUnitActiveSec=15min
+AccuracySec=1min
+Unit=pmqe-publish.service
+
+[Install]
+WantedBy=timers.target
