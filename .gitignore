@@ -28,3 +28,6 @@ data/
 # Tuning runtime snapshots
 runtime_*.json
 source_copy.zip
+
+# Research evaluation sample and JEV replay cache (committed on purpose)
+!research/data/
