@@ -135,6 +135,7 @@ def _evaluate_mispricing_signal(
         ledger_path=ledger_path,
         calibration_path=calibration_path,
         context=model_context,
+        decision_ts=window.end_ts - seconds_remaining,
     )
     market_price = up_market_price if direction == Direction.UP else down_market_price
     if not price_in_entry_band(market_price):
@@ -384,6 +385,7 @@ def _evaluate_late_conviction_signal(
         ledger_path=ledger_path,
         calibration_path=calibration_path,
         context=model_context,
+        decision_ts=window.end_ts - seconds_remaining,
     )
     pooled_direction_probability = (
         pooled_up_probability if strongest_side == "UP" else (1 - pooled_up_probability)
@@ -618,6 +620,7 @@ def evaluate_interval(
         ledger_path=ledger_path,
         calibration_path=calibration_path,
         context=model_context,
+        decision_ts=window.end_ts - seconds_remaining,
     )
     up_signal = _build_signal(
         direction=Direction.UP,

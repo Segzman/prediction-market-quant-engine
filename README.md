@@ -186,7 +186,7 @@ python -m pytest -q                                        # test suite
 
 - **Sample size.** Paper/shadow ledgers hold roughly 105 resolved trades, too few to establish an edge.
 - **No out-of-sample split yet.** Calibration buckets for Model C are scored on the same resolutions they are fit on; a chronological train/test split is the next step.
-- **Look-ahead risk in replay.** Model C's ledger fallback can read resolutions later than the decision being replayed; it should filter to windows that ended before the decision time.
+- **Look-ahead in Model C ledger fallback: fixed.** The fallback calibration now passes the decision timestamp through the call chain (`strategy/signal.py` derives it as `window.end_ts - seconds_remaining`) and counts only resolutions whose `window_end_ts` is strictly before that time. Ledgers are parsed once and cached keyed on file mtime, so every Model C tick no longer re-reads the JSONL file.
 - **Synthetic market in `scripts/simulate_models.py`.** The simulated order book under-reacts to momentum by construction, so it tests plumbing, not edge.
 - **Execution model.** No queue-position, partial-fill, or latency/slippage sensitivity model.
 - **Shadow run outcome.** `docs/shadow_no_go_2026-05-12.md` records a NO-GO decision on feed-stability evidence; the engine fails closed rather than trading through degraded feeds.

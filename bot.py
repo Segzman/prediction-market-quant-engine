@@ -1257,6 +1257,7 @@ def compute_candidate_probabilities(
                     ledger_path=ledger_paths.get(letter),
                     calibration_path=MODEL_C_CALIBRATION_FILE,
                     context=model_context,
+                    decision_ts=window.end_ts - seconds_remaining,
                 ),
                 4,
             )

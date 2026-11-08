@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import time
 from functools import lru_cache
 from pathlib import Path
 from statistics import NormalDist
@@ -286,6 +287,7 @@ def model_c_calibrated(
     min_bucket_samples: int = MODEL_C_MIN_BUCKET_SAMPLES,
     context: ModelContext | None = None,
     baseline: float | None = None,
+    decision_ts: float | None = None,
 ) -> float:
     if open_price == 0:
         return 0.5
@@ -377,12 +379,20 @@ def model_c_calibrated(
     if not path.exists():
         return baseline_probability
 
+    if decision_ts is None:
+        decision_ts = time.time()
+
     bucket_total = 0
     bucket_up = 0
     legacy_total = 0
     legacy_up = 0
-    for record in _read_jsonl(path):
+    for record in _read_ledger(path):
         if record.get("type") != "resolution":
+            continue
+        # Only resolutions whose window ended strictly before the decision
+        # time are usable without look-ahead bias.
+        window_end_ts = record.get("window_end_ts")
+        if window_end_ts is None or window_end_ts >= decision_ts:
             continue
         if record.get("model_c_bucket") == meta_bucket_key:
             bucket_total += 1
@@ -410,6 +420,7 @@ def pooled_probability(
     ledger_path: str | None = None,
     calibration_path: str | None = None,
     context: ModelContext | None = None,
+    decision_ts: float | None = None,
 ) -> float:
     probability_a = model_a_momentum(open_price, current_price, seconds_remaining)
     probability_b = model_b_composite(
@@ -428,6 +439,7 @@ def pooled_probability(
         calibration_path=calibration_path,
         context=context,
         baseline=probability_b,
+        decision_ts=decision_ts,
     )
     market_probability = (
         context.market_implied_up_probability
@@ -508,6 +520,7 @@ def get_probability(
     ledger_path: str | None = None,
     calibration_path: str | None = None,
     context: ModelContext | None = None,
+    decision_ts: float | None = None,
 ) -> float:
     choice = model.upper()
     if choice == "P":
@@ -519,6 +532,7 @@ def get_probability(
             ledger_path=ledger_path,
             calibration_path=calibration_path,
             context=context,
+            decision_ts=decision_ts,
         )
     if choice == "B":
         return model_b_composite(
@@ -537,6 +551,7 @@ def get_probability(
             ledger_path=ledger_path,
             calibration_path=calibration_path,
             context=context,
+            decision_ts=decision_ts,
         )
     return model_a_momentum(open_price, current_price, seconds_remaining)
 
@@ -618,6 +633,22 @@ def _read_jsonl(path: Path) -> list[dict]:
             if not line:
                 continue
             records.append(json.loads(line))
+    return records
+
+
+# path -> (mtime_ns at parse time, parsed records). Avoids re-reading the
+# growing JSONL ledger on every Model C call.
+_LEDGER_CACHE: dict[str, tuple[int, list[dict]]] = {}
+
+
+def _read_ledger(path: Path) -> list[dict]:
+    cache_key = str(path)
+    mtime_ns = path.stat().st_mtime_ns
+    cached = _LEDGER_CACHE.get(cache_key)
+    if cached is not None and cached[0] == mtime_ns:
+        return cached[1]
+    records = _read_jsonl(path)
+    _LEDGER_CACHE[cache_key] = (mtime_ns, records)
     return records
 
 
