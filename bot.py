@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from collections import deque
 import contextlib
 import copy
 import hashlib
@@ -11,79 +10,68 @@ import signal
 import statistics
 import sys
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from cli import CliArgs, parse_args, parse_model_names  # noqa: F401 (CliArgs, parse_model_names re-exported)
 from config import (
     ACTIVE_MODEL_TRACK,
-    ALERTS_FILE,
     ALERT_ORDER_FAILURE_THRESHOLD,
     ALERT_ORDER_FAILURE_WINDOW_SECONDS,
     ALERT_RISK_BREACH_THROTTLE_SECONDS,
     ALERT_WEBHOOK_URL,
+    ALERTS_FILE,
     ALLOW_TRADING_WITHOUT_BTC_PRICE,
     ASSET_KEYWORDS,
     BANKROLL_RISK_FRACTION,
     BINANCE_REST_SYMBOLS,
     BOT_LOCK_FILE,
-    COOLDOWN_SECONDS,
-    CONSECUTIVE_LOSS_PAUSE_SECONDS,
-    DATA_DIR,
-    DEFAULT_MAX_CORRECTION_AGE,
-    DRY_RUN,
-    EDGE_THRESHOLD,
-    EXIT_REVERSE_SIGNAL,
-    EXIT_STOP_LOSS_PCT,
-    HIGH_CONVICTION_ENTRY_THRESHOLD,
     CONVICTION_DECAY_FLOOR,
     CONVICTION_DECAY_SECONDS,
+    EARLY_WINDOW_TP_PCT,
+    EDGE_THRESHOLD,
+    ENTRY_WINDOW_END,
+    ENTRY_WINDOW_START,
+    EXIT_REVERSE_SIGNAL,
+    EXIT_STOP_LOSS_PCT,
+    EXIT_TIME_SECONDS,
+    EXIT_TP1_FRACTION,
+    EXIT_TP1_PCT,
+    EXIT_TRAIL_PCT,
+    FORCE_INTERVAL_TRADES,
+    HEDGE_ENABLED,
+    HEDGE_FRACTION,
+    HIGH_CONVICTION_ENTRY_THRESHOLD,
     HIGH_CONVICTION_MIN_ELAPSED_SECONDS,
     HIGH_CONVICTION_SL_PCT,
     HIGH_CONVICTION_TIME_EXIT,
     HIGH_CONVICTION_TIME_EXTENSION_SECONDS,
-    MOMENTUM_SL_VELOCITY_PCT,
-    MOMENTUM_SL_VELOCITY_WINDOW,
-    EARLY_WINDOW_TP_PCT,
-    LATE_WINDOW_TP_PCT,
+    INTENT_RECON_ABORT_GRACE_SECONDS,
     LATE_WINDOW_THRESHOLD_SECONDS,
-    EXIT_TAKE_PROFIT_PCT,
-    EXIT_TP1_FRACTION,
-    EXIT_TP1_PCT,
-    EXIT_TRAIL_PCT,
-    EXIT_TIME_SECONDS,
-    LOW_CONVICTION_HARD_TIME_EXIT,
-    MIN_HOLD_SECONDS,
-    SL_CONFIRMATION_SECONDS,
-    SHADOW_MULTI_TRACK_EXECUTION,
-    SL_INSTANT_BREACH_PCT,
-    ENTRY_WINDOW_END,
-    ENTRY_WINDOW_START,
-    FORCE_INTERVAL_TRADES,
-    HEDGE_COOLDOWN_SECONDS,
-    HEDGE_ENABLED,
-    HEDGE_FRACTION,
-    LEDGER_FILE,
+    LATE_WINDOW_TP_PCT,
+    LEDGER_FILE_BOTH,
     LEDGER_FILE_CONVICTION,
     LEDGER_FILE_MISPRICING,
-    LEDGER_FILE_BOTH,
     LIVE_BALANCE_BUFFER_USDC,
-    LIVE_DRY_RUN,
     LIVE_FORCE_INTERVAL_TRADES,
     LIVE_HEDGE_ENABLED,
     LIVE_KILL_SWITCH_FILE,
-    INTENT_RECON_ABORT_GRACE_SECONDS,
     LIVE_MIN_AVAILABLE_USDC,
-    LIVE_REQUIRE_EMPTY_OPEN_ORDERS,
     LIVE_RECON_LOOKBACK_SECONDS,
+    LIVE_REQUIRE_EMPTY_OPEN_ORDERS,
     LIVE_STARTUP_CANCEL_ALL,
     LOG_LEVEL,
+    LOW_CONVICTION_HARD_TIME_EXIT,
     MAX_BET_USDC,
     MAX_POSITIONS_PER_WINDOW,
     MIN_BET_USDC,
     MIN_HEALTHY_PRICE_FEEDS,
+    MIN_HOLD_SECONDS,
     MIN_NET_EXPECTED_PROFIT_USDC,
     MODEL_C_CALIBRATION_FILE,
+    MOMENTUM_SL_VELOCITY_PCT,
+    MOMENTUM_SL_VELOCITY_WINDOW,
     POLYMARKET_API_KEY,
     POLYMARKET_FUNDER,
     POLYMARKET_PASSPHRASE,
@@ -92,11 +80,12 @@ from config import (
     POLYMARKET_SIGNATURE_TYPE,
     RUNTIME_STATUS_FILE,
     RUNTIME_STATUS_UPDATE_SECONDS,
-    SNIPE_HARD_DEADLINE_SECONDS,
+    SHADOW_MULTI_TRACK_EXECUTION,
+    SL_CONFIRMATION_SECONDS,
+    SL_INSTANT_BREACH_PCT,
     SNIPE_EARLY_ENTRY_SECONDS,
-    SNIPE_MIN_CONFIDENCE,
+    SNIPE_HARD_DEADLINE_SECONDS,
     SNIPE_POLL_SECONDS,
-    SNIPE_SPIKE_CONFIDENCE_DELTA,
     SNIPE_START_SECONDS,
     STARTING_BANKROLL_USDC,
     TARGET_ASSET,
@@ -112,33 +101,18 @@ from feeds.binance import (
 from feeds.bybit import BybitFeed, fetch_bybit_spot_price
 from feeds.gemini import GeminiFeed, fetch_gemini_spot_price
 from feeds.kraken import KrakenFeed, fetch_kraken_spot_price
-from market.slug import extract_market_slug
 from market.client import PolymarketClient, PublicPolymarketClient
 from market.finder import MarketFinder
 from market.kalshi import get_btc_yes_probability
 from market.orderer import (
     AmbiguousOrderError,
     BookSnapshot,
+    Orderer,
     OrderResult,
     OrderStatus,
-    Orderer,
 )
+from market.slug import extract_market_slug
 from ops.alerts import AlertManager
-from ops.live_startup import (
-    IntentReconciliationResult,
-    LivePreflightResult,
-    LiveReconciliationResult,
-    perform_live_preflight as _perform_live_preflight,
-    reconcile_live_ledger as _reconcile_live_ledger,
-    reconcile_open_order_intents as _reconcile_open_order_intents,
-)
-from ops.resolution import (
-    fetch_binance_agg_trade_price as _fetch_binance_agg_trade_price,
-    resolve_market_outcome as _resolve_market_outcome,
-    resolve_with_binance as _resolve_with_binance,
-    sweep_unresolved_trades_once as _sweep_unresolved_trades_once,
-    wait_for_market_resolution as _wait_for_market_resolution,
-)
 from ops.dashboard import (  # noqa: F401 (runtime and status names re-exported for tests)
     ModelRuntime,
     RuntimeStats,
@@ -153,15 +127,74 @@ from ops.dashboard import (  # noqa: F401 (runtime and status names re-exported 
     write_runtime_status_file,
 )
 from ops.formatting import format_book_snapshot
+from ops.live_startup import (
+    IntentReconciliationResult,
+    LivePreflightResult,
+    LiveReconciliationResult,
+)
+from ops.live_startup import (
+    perform_live_preflight as _perform_live_preflight,
+)
+from ops.live_startup import (
+    reconcile_live_ledger as _reconcile_live_ledger,
+)
+from ops.live_startup import (
+    reconcile_open_order_intents as _reconcile_open_order_intents,
+)
 from ops.lock import process_lock
+from ops.resolution import (
+    fetch_binance_agg_trade_price as _fetch_binance_agg_trade_price,
+)
+from ops.resolution import (
+    resolve_market_outcome as _resolve_market_outcome,
+)
+from ops.resolution import (
+    resolve_with_binance as _resolve_with_binance,
+)
+from ops.resolution import (
+    sweep_unresolved_trades_once as _sweep_unresolved_trades_once,
+)
+from ops.resolution import (
+    wait_for_market_resolution as _wait_for_market_resolution,
+)
 from persistence.ledger import Ledger
 from risk.guard import DailyGuard
-from risk.sizing import fixed_size, get_bet_size, plan_position_sizes
+from risk.sizing import get_bet_size, plan_position_sizes
 from sim.demo import DemoClient
 from sim.feed import SimulatedFeed
-from state import BotState, ExitReason, Position, PositionStatus, WindowPhase, WindowState
+from state import BotState, ExitReason, Position, WindowPhase, WindowState
 from state.session import apply_price
-from state.track import ModelTrack, TRACK_COLORS, TRACK_CSS_COLORS
+from state.track import TRACK_COLORS, TRACK_CSS_COLORS, ModelTrack
+from strategy.entry_helpers import (
+    BookAssessment,
+)
+from strategy.entry_helpers import (
+    assess_book_quality_for_regime as _assess_book_quality_for_regime,
+)
+from strategy.entry_helpers import (
+    book_price_spread as _book_price_spread,
+)
+from strategy.entry_helpers import (
+    choose_better_signal as _choose_better_signal,
+)
+from strategy.entry_helpers import (
+    estimate_trade_fee_usdc as _estimate_trade_fee_usdc,
+)
+from strategy.entry_helpers import (
+    evaluate_trade_economics as _evaluate_trade_economics,
+)
+from strategy.entry_helpers import (
+    scaled_net_profit_floor_usdc as _scaled_net_profit_floor_usdc,
+)
+from strategy.entry_helpers import (
+    score_signal as _score_signal,
+)
+from strategy.entry_helpers import (
+    should_enter_on_waiting_conviction as _should_enter_on_waiting_conviction,
+)
+from strategy.entry_helpers import (
+    should_fire_snipe_signal as _should_fire_snipe_signal,
+)
 from strategy.probability import (
     ModelContext,
     bucket_acceleration,
@@ -173,20 +206,7 @@ from strategy.probability import (
     build_model_c_bucket_key,
     get_probability,
 )
-from strategy.entry_helpers import (
-    BookAssessment,
-    assess_book_quality_for_regime as _assess_book_quality_for_regime,
-    book_price_spread as _book_price_spread,
-    choose_better_signal as _choose_better_signal,
-    estimate_trade_fee_usdc as _estimate_trade_fee_usdc,
-    evaluate_trade_economics as _evaluate_trade_economics,
-    scaled_net_profit_floor_usdc as _scaled_net_profit_floor_usdc,
-    score_signal as _score_signal,
-    should_enter_on_waiting_conviction as _should_enter_on_waiting_conviction,
-    should_fire_snipe_signal as _should_fire_snipe_signal,
-)
-from strategy.signal import build_hedge_signal, compute_sl_confirmation_seconds, evaluate_with_diagnostics
-
+from strategy.signal import compute_sl_confirmation_seconds, evaluate_with_diagnostics
 
 LOGGER = logging.getLogger("bot")
 ALERTER: AlertManager | None = None
@@ -500,7 +520,6 @@ async def check_position_exits(
 
         exit_reason: ExitReason | None = None
         exit_price: float | None = None
-        exit_fee_rate_bps: int = 0
         resting_fill = False  # True when a resting GTC order filled (no extra sell needed)
         filled_exit_result: OrderResult | None = None
 
@@ -514,7 +533,6 @@ async def check_position_exits(
                     if sl_status.status == OrderStatus.FILLED:
                         exit_reason = ExitReason.STOP_LOSS
                         exit_price = sl_status.avg_price or position.stop_loss_price
-                        exit_fee_rate_bps = sl_status.fee_rate_bps
                         resting_fill = True
                         filled_exit_result = sl_status
                         if position.tp_order_id:
@@ -531,7 +549,6 @@ async def check_position_exits(
                     if tp_status.status == OrderStatus.FILLED:
                         exit_reason = ExitReason.TAKE_PROFIT
                         exit_price = tp_status.avg_price or position.take_profit_price
-                        exit_fee_rate_bps = tp_status.fee_rate_bps
                         resting_fill = True
                         filled_exit_result = tp_status
                         if position.sl_order_id:
@@ -683,7 +700,6 @@ async def check_position_exits(
                     or exit_price
                     or position.entry_price
                 )
-                exit_fee_rate_bps = filled_exit_result.fee_rate_bps
                 closed_notional_usdc = _filled_amount_usdc(
                     filled_exit_result,
                     position.remaining_size_usdc,
@@ -780,7 +796,7 @@ async def place_resting_exits(
     track: ModelTrack,
     *,
     window: WindowState,
-    position: "Position",
+    position: Position,
     asset: str,
 ) -> None:
     """Place GTC resting sell orders at SL and TP prices immediately after entry.
@@ -2840,7 +2856,6 @@ async def trading_loop(
     orderer = both_track.orderer
     model = both_track.model
     stats = both_track.stats
-    ledger = both_track.ledger
 
     force_interval_trades = force_interval_trades_enabled(live_mode=live_mode)
     last_window_end_ts: int | None = None
@@ -3161,7 +3176,7 @@ async def trading_loop(
             """Run exit checks for all tracks on each snipe poll tick."""
             tick_up, tick_down = None, None
             with contextlib.suppress(Exception):
-                tick_up, tick_down = await refresh_window_books(orderer, window)
+                tick_up, tick_down = await refresh_window_books(orderer, window)  # noqa: B023 (awaited within the same iteration)
             for _track in tracks:
                 _tw = _track.state.current_window
                 if _tw is not None and _tw.has_open_positions():

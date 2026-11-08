@@ -3,6 +3,7 @@
 Hedge Strategy Simulator - $10 Bankroll
 Compares different hedge behaviors for early-stage loss minimization.
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -80,6 +81,7 @@ def calculate_pnl(
 
 # ============== HEDGE STRATEGIES ==============
 
+
 def strategy_no_hedge(
     primary_bet: float,
     bankroll: float,
@@ -133,8 +135,8 @@ def strategy_drawdown_scaled(
 
     hedge = min(primary_bet * fraction, bankroll * 0.9 - primary_bet)
     if hedge < MIN_BET:
-        return PositionPlan(primary_bet, 0.0, 0.0, False, f"DD_SCALED_{int(fraction*100)}%_SKIP")
-    return PositionPlan(primary_bet, round(hedge, 2), 0.0, True, f"DD_SCALED_{int(fraction*100)}%")
+        return PositionPlan(primary_bet, 0.0, 0.0, False, f"DD_SCALED_{int(fraction * 100)}%_SKIP")
+    return PositionPlan(primary_bet, round(hedge, 2), 0.0, True, f"DD_SCALED_{int(fraction * 100)}%")
 
 
 def strategy_loss_cap(
@@ -207,6 +209,7 @@ def strategy_early_stage_preservation(
 
 
 # ============== SIMULATION ENGINE ==============
+
 
 def run_trade_scenario(
     scenario_name: str,
@@ -304,15 +307,15 @@ def print_results(results: list[TradeResult], title: str):
         hedge_pct = (r.hedge_bet / r.primary_bet * 100) if r.primary_bet > 0 else 0
         pnl_str = f"${r.pnl:+.2f}"
         print(
-            f"  {i+1:>6} | ${r.primary_bet:>6.2f} | ${r.hedge_bet:>6.2f} | "
+            f"  {i + 1:>6} | ${r.primary_bet:>6.2f} | ${r.hedge_bet:>6.2f} | "
             f"{hedge_pct:>5.0f}% | {pnl_str:>8} | ${r.bankroll_after:>8.2f}"
         )
 
     print(f"  {'-' * 60}")
     print(f"  Starting: ${start_bankroll:.2f}")
     print(f"  Ending:   ${end_bankroll:.2f}")
-    print(f"  Total PnL: ${total_pnl:+.2f} ({total_pnl/start_bankroll*100:+.1f}%)")
-    print(f"  Max Drawdown: {max_drawdown*100:.1f}%")
+    print(f"  Total PnL: ${total_pnl:+.2f} ({total_pnl / start_bankroll * 100:+.1f}%)")
+    print(f"  Max Drawdown: {max_drawdown * 100:.1f}%")
     print(f"  Trades: {len(results)}")
 
 
@@ -321,44 +324,44 @@ def print_results(results: list[TradeResult], title: str):
 # Scenario 1: 50/50 win rate, typical mispricing
 SCENARIO_1 = [
     # (primary_price, hedge_price, direction, actual_outcome)
-    (0.45, 0.55, Direction.UP, Direction.UP),    # Win - UP was underpriced
-    (0.55, 0.45, Direction.DOWN, Direction.UP), # Loss - DOWN bet, UP won
-    (0.48, 0.52, Direction.UP, Direction.DOWN), # Loss - UP bet, DOWN won
-    (0.52, 0.48, Direction.DOWN, Direction.DOWN), # Win
-    (0.44, 0.56, Direction.UP, Direction.UP),   # Win
-    (0.58, 0.42, Direction.DOWN, Direction.UP),   # Loss
-    (0.46, 0.54, Direction.UP, Direction.DOWN), # Loss
-    (0.54, 0.46, Direction.DOWN, Direction.DOWN), # Win
-    (0.43, 0.57, Direction.UP, Direction.UP),    # Win
-    (0.56, 0.44, Direction.DOWN, Direction.UP), # Loss
+    (0.45, 0.55, Direction.UP, Direction.UP),  # Win - UP was underpriced
+    (0.55, 0.45, Direction.DOWN, Direction.UP),  # Loss - DOWN bet, UP won
+    (0.48, 0.52, Direction.UP, Direction.DOWN),  # Loss - UP bet, DOWN won
+    (0.52, 0.48, Direction.DOWN, Direction.DOWN),  # Win
+    (0.44, 0.56, Direction.UP, Direction.UP),  # Win
+    (0.58, 0.42, Direction.DOWN, Direction.UP),  # Loss
+    (0.46, 0.54, Direction.UP, Direction.DOWN),  # Loss
+    (0.54, 0.46, Direction.DOWN, Direction.DOWN),  # Win
+    (0.43, 0.57, Direction.UP, Direction.UP),  # Win
+    (0.56, 0.44, Direction.DOWN, Direction.UP),  # Loss
 ]
 
 # Scenario 2: Challenging early streak - 3 losses first
 SCENARIO_2 = [
-    (0.50, 0.50, Direction.UP, Direction.DOWN),   # Loss
-    (0.52, 0.48, Direction.UP, Direction.DOWN),     # Loss
-    (0.48, 0.52, Direction.DOWN, Direction.UP),    # Loss
-    (0.45, 0.55, Direction.UP, Direction.UP),      # Win - recovery
-    (0.47, 0.53, Direction.UP, Direction.UP),      # Win
+    (0.50, 0.50, Direction.UP, Direction.DOWN),  # Loss
+    (0.52, 0.48, Direction.UP, Direction.DOWN),  # Loss
+    (0.48, 0.52, Direction.DOWN, Direction.UP),  # Loss
+    (0.45, 0.55, Direction.UP, Direction.UP),  # Win - recovery
+    (0.47, 0.53, Direction.UP, Direction.UP),  # Win
     (0.55, 0.45, Direction.DOWN, Direction.DOWN),  # Win
-    (0.44, 0.56, Direction.UP, Direction.UP),      # Win
-    (0.58, 0.42, Direction.DOWN, Direction.UP),    # Loss
-    (0.46, 0.54, Direction.UP, Direction.UP),      # Win
+    (0.44, 0.56, Direction.UP, Direction.UP),  # Win
+    (0.58, 0.42, Direction.DOWN, Direction.UP),  # Loss
+    (0.46, 0.54, Direction.UP, Direction.UP),  # Win
     (0.52, 0.48, Direction.DOWN, Direction.DOWN),  # Win
 ]
 
 # Scenario 3: Expensive tokens (late conviction territory)
 SCENARIO_3 = [
-    (0.72, 0.28, Direction.UP, Direction.UP),     # Win but expensive
-    (0.75, 0.25, Direction.UP, Direction.DOWN),     # Loss on expensive
-    (0.68, 0.32, Direction.UP, Direction.UP),     # Win
-    (0.70, 0.30, Direction.UP, Direction.DOWN),     # Loss
-    (0.74, 0.26, Direction.UP, Direction.UP),     # Win
-    (0.30, 0.70, Direction.DOWN, Direction.DOWN), # Win from other side
-    (0.28, 0.72, Direction.DOWN, Direction.UP),   # Loss
-    (0.35, 0.65, Direction.DOWN, Direction.DOWN), # Win
-    (0.66, 0.34, Direction.UP, Direction.UP),     # Win
-    (0.71, 0.29, Direction.UP, Direction.DOWN),     # Loss
+    (0.72, 0.28, Direction.UP, Direction.UP),  # Win but expensive
+    (0.75, 0.25, Direction.UP, Direction.DOWN),  # Loss on expensive
+    (0.68, 0.32, Direction.UP, Direction.UP),  # Win
+    (0.70, 0.30, Direction.UP, Direction.DOWN),  # Loss
+    (0.74, 0.26, Direction.UP, Direction.UP),  # Win
+    (0.30, 0.70, Direction.DOWN, Direction.DOWN),  # Win from other side
+    (0.28, 0.72, Direction.DOWN, Direction.UP),  # Loss
+    (0.35, 0.65, Direction.DOWN, Direction.DOWN),  # Win
+    (0.66, 0.34, Direction.UP, Direction.UP),  # Win
+    (0.71, 0.29, Direction.UP, Direction.DOWN),  # Loss
 ]
 
 

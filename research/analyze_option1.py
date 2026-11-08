@@ -3,6 +3,7 @@
 Detailed analysis of Option 1: Drawdown-Scaled Hedge Strategy
 Shows exactly what happens in each trade.
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -122,16 +123,16 @@ def calculate_pnl(
 
 # Scenario 1: 50/50 win rate
 SCENARIO_1 = [
-    (0.45, 0.55, Direction.UP, Direction.UP,    "UP was underpriced @ 0.45, actually won"),
-    (0.55, 0.45, Direction.DOWN, Direction.UP,    "DOWN bet @ 0.55, but UP won - wrong direction"),
-    (0.48, 0.52, Direction.UP, Direction.DOWN,  "UP bet @ 0.48, but DOWN won - wrong"),
-    (0.52, 0.48, Direction.DOWN, Direction.DOWN,"DOWN bet @ 0.52, DOWN won - correct"),
-    (0.44, 0.56, Direction.UP, Direction.UP,   "UP underpriced @ 0.44, UP won"),
-    (0.58, 0.42, Direction.DOWN, Direction.UP,  "DOWN bet @ 0.58, UP won - wrong"),
-    (0.46, 0.54, Direction.UP, Direction.DOWN,  "UP bet @ 0.46, DOWN won - wrong"),
-    (0.54, 0.46, Direction.DOWN, Direction.DOWN,"DOWN bet @ 0.54, DOWN won - correct"),
-    (0.43, 0.57, Direction.UP, Direction.UP,    "UP underpriced @ 0.43, UP won"),
-    (0.56, 0.44, Direction.DOWN, Direction.UP,  "DOWN bet @ 0.56, UP won - wrong"),
+    (0.45, 0.55, Direction.UP, Direction.UP, "UP was underpriced @ 0.45, actually won"),
+    (0.55, 0.45, Direction.DOWN, Direction.UP, "DOWN bet @ 0.55, but UP won - wrong direction"),
+    (0.48, 0.52, Direction.UP, Direction.DOWN, "UP bet @ 0.48, but DOWN won - wrong"),
+    (0.52, 0.48, Direction.DOWN, Direction.DOWN, "DOWN bet @ 0.52, DOWN won - correct"),
+    (0.44, 0.56, Direction.UP, Direction.UP, "UP underpriced @ 0.44, UP won"),
+    (0.58, 0.42, Direction.DOWN, Direction.UP, "DOWN bet @ 0.58, UP won - wrong"),
+    (0.46, 0.54, Direction.UP, Direction.DOWN, "UP bet @ 0.46, DOWN won - wrong"),
+    (0.54, 0.46, Direction.DOWN, Direction.DOWN, "DOWN bet @ 0.54, DOWN won - correct"),
+    (0.43, 0.57, Direction.UP, Direction.UP, "UP underpriced @ 0.43, UP won"),
+    (0.56, 0.44, Direction.DOWN, Direction.UP, "DOWN bet @ 0.56, UP won - wrong"),
 ]
 
 
@@ -184,25 +185,27 @@ def run_detailed_simulation():
         # Calculate hedge percentage
         hedge_pct = (plan.hedge_usdc / plan.primary_usdc * 100) if plan.primary_usdc > 0 else 0
 
-        trades.append(TradeDetail(
-            trade_num=trade_num,
-            bankroll_before=bankroll_before,
-            bankroll_ratio=bankroll_ratio,
-            primary_bet=plan.primary_usdc,
-            hedge_bet=plan.hedge_usdc,
-            hedge_pct=hedge_pct,
-            primary_price=primary_price,
-            hedge_price=hedge_price,
-            direction=direction.value,
-            actual=outcome.value,
-            primary_outcome=primary_desc,
-            hedge_outcome=hedge_desc,
-            gross_pnl=gross,
-            fees=fees,
-            net_pnl=net,
-            bankroll_after=bankroll,
-            cumulative_pnl=bankroll - starting_bankroll,
-        ))
+        trades.append(
+            TradeDetail(
+                trade_num=trade_num,
+                bankroll_before=bankroll_before,
+                bankroll_ratio=bankroll_ratio,
+                primary_bet=plan.primary_usdc,
+                hedge_bet=plan.hedge_usdc,
+                hedge_pct=hedge_pct,
+                primary_price=primary_price,
+                hedge_price=hedge_price,
+                direction=direction.value,
+                actual=outcome.value,
+                primary_outcome=primary_desc,
+                hedge_outcome=hedge_desc,
+                gross_pnl=gross,
+                fees=fees,
+                net_pnl=net,
+                bankroll_after=bankroll,
+                cumulative_pnl=bankroll - starting_bankroll,
+            )
+        )
 
     # Print detailed table
     print("\nDETAILED TRADE TABLE:")
@@ -217,7 +220,7 @@ def run_detailed_simulation():
     print("-" * 120)
 
     for t in trades:
-        ratio_pct = f"{t.bankroll_ratio*100:.0f}%"
+        ratio_pct = f"{t.bankroll_ratio * 100:.0f}%"
         hedge_pct_str = f"{t.hedge_pct:.0f}%"
         gross_str = f"${t.gross_pnl:+.2f}"
         fees_str = f"${t.fees:.2f}"
@@ -240,7 +243,7 @@ def run_detailed_simulation():
 
     for t in trades:
         print(f"\n--- Trade {t.trade_num} ---")
-        print(f"  Bankroll BEFORE: ${t.bankroll_before:.2f} ({t.bankroll_ratio*100:.0f}% of start)")
+        print(f"  Bankroll BEFORE: ${t.bankroll_before:.2f} ({t.bankroll_ratio * 100:.0f}% of start)")
         print(f"  → Hedge rule: {t.hedge_pct:.0f}% because ratio triggers that level")
         print(
             f"  → Bets: ${t.primary_bet:.2f} primary + ${t.hedge_bet:.2f} hedge "

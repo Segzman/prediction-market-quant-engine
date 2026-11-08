@@ -56,6 +56,7 @@ BINS = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
 
 # ---------- pure helpers (unit tested) ----------
 
+
 def render_instructions(template: str, side: str) -> str:
     return template.format(
         strongest_side=side,
@@ -69,10 +70,12 @@ def request_payload(framing: dict, state: dict) -> dict:
     return {
         "state": sub,
         "model": MODEL,
-        "questions": {QUESTION: {
-            "type": framing.get("question_type", "noul"),
-            "instructions": render_instructions(framing["instructions"], state["strongest_side"]),
-        }},
+        "questions": {
+            QUESTION: {
+                "type": framing.get("question_type", "noul"),
+                "instructions": render_instructions(framing["instructions"], state["strongest_side"]),
+            }
+        },
     }
 
 
@@ -135,23 +138,25 @@ def metrics(rows: list[dict]) -> dict:
     ps = [r["p"] for r in scored]
     ys = [bool(r["agree"]) for r in scored]
     dets = [bool(r["det"]) for r in scored]
-    out["brier"] = round(sum((p - float(y)) ** 2 for p, y in zip(ps, ys)) / n, 4)
-    out["log_loss"] = round(sum(_logloss(p, y) for p, y in zip(ps, ys)) / n, 4)
-    out["acc_at_0.5"] = round(sum((p >= 0.5) == y for p, y in zip(ps, ys)) / n, 4)
-    out["acc_at_0.60"] = round(sum((p >= THRESHOLD) == y for p, y in zip(ps, ys)) / n, 4)
-    confirm = [y for p, y in zip(ps, ys) if p >= THRESHOLD]
+    out["brier"] = round(sum((p - float(y)) ** 2 for p, y in zip(ps, ys, strict=False)) / n, 4)
+    out["log_loss"] = round(sum(_logloss(p, y) for p, y in zip(ps, ys, strict=False)) / n, 4)
+    out["acc_at_0.5"] = round(sum((p >= 0.5) == y for p, y in zip(ps, ys, strict=False)) / n, 4)
+    out["acc_at_0.60"] = round(sum((p >= THRESHOLD) == y for p, y in zip(ps, ys, strict=False)) / n, 4)
+    confirm = [y for p, y in zip(ps, ys, strict=False) if p >= THRESHOLD]
     out["confirm_rate_at_0.60"] = round(len(confirm) / n, 4)
     out["precision_at_0.60"] = round(sum(confirm) / len(confirm), 4) if confirm else None
-    out["det_agreement"] = round(sum((p >= 0.5) == d for p, d in zip(ps, dets)) / n, 4)
+    out["det_agreement"] = round(sum((p >= 0.5) == d for p, d in zip(ps, dets, strict=False)) / n, 4)
     cal = []
-    for lo, hi in zip(BINS[:-1], BINS[1:]):
+    for lo, hi in zip(BINS[:-1], BINS[1:], strict=False):
         idx = [i for i, p in enumerate(ps) if lo <= p < hi or (hi == 1.0 and p == 1.0)]
-        cal.append({
-            "bin": f"{lo:.1f}-{hi:.1f}",
-            "n": len(idx),
-            "mean_p": round(sum(ps[i] for i in idx) / len(idx), 4) if idx else None,
-            "observed": round(sum(ys[i] for i in idx) / len(idx), 4) if idx else None,
-        })
+        cal.append(
+            {
+                "bin": f"{lo:.1f}-{hi:.1f}",
+                "n": len(idx),
+                "mean_p": round(sum(ps[i] for i in idx) / len(idx), 4) if idx else None,
+                "observed": round(sum(ys[i] for i in idx) / len(idx), 4) if idx else None,
+            }
+        )
     out["calibration"] = cal
     lats = [r["lat_ms"] for r in rows if r.get("lat_ms") is not None]
     out["latency_p50_ms"] = round(percentile(lats, 50), 1) if lats else None
@@ -172,13 +177,16 @@ def sample_evenly(items: list, n: int | None) -> list:
     return [items[round(i * (len(items) - 1) / (n - 1))] for i in range(n)] if n > 1 else items[:1]
 
 
-def bootstrap_brier_diff(a: list[float], b: list[float], clusters: list, reps: int = 2000, seed: int = 7) -> tuple[float, float, float]:
+def bootstrap_brier_diff(
+    a: list[float], b: list[float], clusters: list, reps: int = 2000, seed: int = 7
+) -> tuple[float, float, float]:
     """Paired cluster bootstrap (resampling windows) of mean squared-error difference a - b.
     a, b: per-state squared errors; clusters: window id per state. Returns (point, lo95, hi95)."""
     import random
+
     rng = random.Random(seed)
     groups: dict = {}
-    for ea, eb, c in zip(a, b, clusters):
+    for ea, eb, c in zip(a, b, clusters, strict=False):
         groups.setdefault(c, []).append((ea, eb))
     keys = list(groups)
     point = (sum(a) - sum(b)) / len(a)
@@ -195,13 +203,15 @@ def bootstrap_brier_diff(a: list[float], b: list[float], clusters: list, reps: i
 
 # ---------- I/O: key, cache, budget ----------
 
+
 def get_api_key() -> str:
     key = os.environ.get("TYPESAFE_API_KEY", "")
     if key:
         return key
     proc = subprocess.run(
         ["security", "find-generic-password", "-s", "typesafe-api", "-a", "sekun", "-w"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     key = proc.stdout.strip()
     if proc.returncode != 0 or not key:
@@ -332,7 +342,9 @@ def make_runner(max_calls: int | None = None) -> Runner:
 def cmd_run(args) -> None:
     runner = make_runner()
     states = load_states(args.split)
-    sample = sample_evenly(states, args.sample if args.sample else (DEV_SAMPLE if args.split == "dev" else None))
+    sample = sample_evenly(
+        states, args.sample if args.sample else (DEV_SAMPLE if args.split == "dev" else None)
+    )
     for path in args.framings:
         framing = load_framing(Path(path))
         rows = runner.run(framing, sample)
@@ -351,8 +363,12 @@ def cmd_run(args) -> None:
         out_dir.mkdir(parents=True, exist_ok=True)
         (out_dir / f"{framing['name']}.json").write_text(json.dumps(result, indent=1) + "\n")
         m = result["metrics"]
-        print(json.dumps({k: m.get(k) for k in ("name", "brier", "log_loss", "acc_at_0.60", "api_calls", "error_rate")}
-                         | {"name": framing["name"]}))
+        print(
+            json.dumps(
+                {k: m.get(k) for k in ("name", "brier", "log_loss", "acc_at_0.60", "api_calls", "error_rate")}
+                | {"name": framing["name"]}
+            )
+        )
 
 
 def cmd_variance(args) -> None:
@@ -368,10 +384,10 @@ def cmd_variance(args) -> None:
     for vals in per_state.values():
         if len(vals) < 2:
             continue
-        mean = sum(vals) / len(vals)
+        sum(vals) / len(vals)
         spreads.append(max(vals) - min(vals))
-        flip50 += (min(vals) < 0.5 <= max(vals))
-        flip60 += (min(vals) < THRESHOLD <= max(vals))
+        flip50 += min(vals) < 0.5 <= max(vals)
+        flip60 += min(vals) < THRESHOLD <= max(vals)
     summary = {
         "framing": framing["name"],
         "states": len(states),
@@ -393,29 +409,42 @@ def cmd_compare(args) -> None:
     out = {}
     for name in args.names:
         cand = json.loads((RESULTS / args.split / f"{name}.json").read_text())["rows"]
-        ids = [r["id"] for r in cand if r["p"] is not None and any(b["id"] == r["id"] and b["p"] is not None for b in base)]
+        ids = [
+            r["id"]
+            for r in cand
+            if r["p"] is not None and any(b["id"] == r["id"] and b["p"] is not None for b in base)
+        ]
         bmap = {b["id"]: b["p"] for b in base}
         cmap = {r["id"]: r["p"] for r in cand}
         ea = [(cmap[i] - (1.0 if states[i]["agree"] else 0.0)) ** 2 for i in ids]
         eb = [(bmap[i] - (1.0 if states[i]["agree"] else 0.0)) ** 2 for i in ids]
         clusters = [states[i]["window_end_ts"] for i in ids]
         point, lo, hi = bootstrap_brier_diff(ea, eb, clusters)
-        out[name] = {"vs": args.baseline, "n": len(ids), "windows": len(set(clusters)),
-                     "brier_diff": round(point, 4), "ci95": [round(lo, 4), round(hi, 4)]}
+        out[name] = {
+            "vs": args.baseline,
+            "n": len(ids),
+            "windows": len(set(clusters)),
+            "brier_diff": round(point, 4),
+            "ci95": [round(lo, 4), round(hi, 4)],
+        }
         print(json.dumps({"candidate": name} | out[name]))
     return out
 
 
 def cmd_table(args) -> None:
-    print("| split | framing | n | Brier | log loss | acc@0.5 | acc@0.60 | det agree | p50 ms | p95 ms | err | calls |")
+    print(
+        "| split | framing | n | Brier | log loss | acc@0.5 | acc@0.60 | det agree | p50 ms | p95 ms | err | calls |"
+    )
     print("|---|---|---|---|---|---|---|---|---|---|---|---|")
     for split in ("dev", "holdout"):
         for path in sorted((RESULTS / split).glob("*.json")):
             r = json.loads(path.read_text())
             m = r["metrics"]
-            print(f"| {split} | {r['name']} | {m['n_scored']} | {m.get('brier')} | {m.get('log_loss')} | "
-                  f"{m.get('acc_at_0.5')} | {m.get('acc_at_0.60')} | {m.get('det_agreement')} | "
-                  f"{m.get('latency_p50_ms')} | {m.get('latency_p95_ms')} | {m['error_rate']} | {m['api_calls']} |")
+            print(
+                f"| {split} | {r['name']} | {m['n_scored']} | {m.get('brier')} | {m.get('log_loss')} | "
+                f"{m.get('acc_at_0.5')} | {m.get('acc_at_0.60')} | {m.get('det_agreement')} | "
+                f"{m.get('latency_p50_ms')} | {m.get('latency_p95_ms')} | {m['error_rate']} | {m['api_calls']} |"
+            )
     base = None
     for path in sorted((RESULTS / "holdout").glob("*.json")):
         base = base or json.loads(path.read_text())["deterministic_baseline"]

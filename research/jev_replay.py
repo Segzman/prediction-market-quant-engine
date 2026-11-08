@@ -29,6 +29,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import backtest_report as br  # noqa: E402  (also puts repo root on sys.path)
+
 from strategy import jev  # noqa: E402
 
 DEFAULT_MAX_CALLS = 400
@@ -41,7 +42,10 @@ def _api_key() -> str:
     try:
         out = subprocess.run(
             ["security", "find-generic-password", "-s", "typesafe-api", "-a", "sekun", "-w"],
-            capture_output=True, text=True, timeout=60, check=False,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
         return ""
@@ -103,15 +107,16 @@ def main() -> int:
             if prob is None:
                 failures += 1
                 continue
-            rec = {"state_hash": h, "probability": round(prob, 6),
-                   "latency_ms": round(latency_ms, 1)}
+            rec = {"state_hash": h, "probability": round(prob, 6), "latency_ms": round(latency_ms, 1)}
             f.write(json.dumps(rec, separators=(",", ":")) + "\n")
             f.flush()
 
     cache = br.load_jev_cache(cache_path)
     covered = sum(1 for r in states if br.jev_state_hash(r) in cache)
-    print(f"directional test states={len(states)} cached_before={len(states) - len(uncached)} "
-          f"api_calls={calls} failures={failures} cap={cap} covered_now={covered}")
+    print(
+        f"directional test states={len(states)} cached_before={len(states) - len(uncached)} "
+        f"api_calls={calls} failures={failures} cap={cap} covered_now={covered}"
+    )
     return 0
 
 

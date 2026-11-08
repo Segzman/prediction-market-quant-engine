@@ -89,7 +89,11 @@ def _runner(tmp_path, limit, caller):
     return run.Runner(cache, budget, key_getter=lambda: "k", caller=caller), cache, budget
 
 
-FRAMING = {"state_fields": ["tick_move_pct"], "instructions": "q {strongest_side}", "answer_mode": "agreement"}
+FRAMING = {
+    "state_fields": ["tick_move_pct"],
+    "instructions": "q {strongest_side}",
+    "answer_mode": "agreement",
+}
 
 
 def test_cache_hit_is_free_and_persists(tmp_path):
@@ -119,8 +123,10 @@ def test_budget_stops_calls_and_persists(tmp_path):
         return 0.5, 1.0
 
     runner, _, budget = _runner(tmp_path, 2, caller)
-    srcs = [runner.score_state(FRAMING, {"id": i, "tick_move_pct": float(i), "strongest_side": "UP"})["src"]
-            for i in range(4)]
+    srcs = [
+        runner.score_state(FRAMING, {"id": i, "tick_move_pct": float(i), "strongest_side": "UP"})["src"]
+        for i in range(4)
+    ]
     assert srcs == ["api", "api", "budget", "budget"]
     assert len(calls) == 2
     assert run.Budget(tmp_path / "budget.json", 2).used == 2

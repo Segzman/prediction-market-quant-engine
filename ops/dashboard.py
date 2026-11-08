@@ -95,7 +95,9 @@ class ModelRuntime:
 def format_model_signal(stats: RuntimeStats) -> str:
     if stats.last_signal_direction == "-" or stats.last_signal_edge is None:
         return "-"
-    return f"{stats.last_signal_direction} e{stats.last_signal_edge:.3f} p{stats.last_signal_market_price:.3f}"
+    return (
+        f"{stats.last_signal_direction} e{stats.last_signal_edge:.3f} p{stats.last_signal_market_price:.3f}"
+    )
 
 
 def format_model_order(stats: RuntimeStats) -> str:
@@ -128,12 +130,12 @@ def render_multi_dashboard(runtimes: list[ModelRuntime]) -> str:
     sub_divider = "-" * width
     started_ts = min(runtime.stats.started_ts for runtime in runtimes)
     price_age = (
-        format_age(now - primary.state.btc_price_updated_ts)
-        if primary.state.btc_price_updated_ts
-        else "n/a"
+        format_age(now - primary.state.btc_price_updated_ts) if primary.state.btc_price_updated_ts else "n/a"
     )
     active_slug = next((runtime.stats.window_slug for runtime in runtimes if runtime.stats.window_slug), "-")
-    active_phase = next((runtime.stats.window_phase for runtime in runtimes if runtime.stats.window_phase != "-"), "-")
+    active_phase = next(
+        (runtime.stats.window_phase for runtime in runtimes if runtime.stats.window_phase != "-"), "-"
+    )
     active_remaining = next(
         (
             runtime.stats.seconds_remaining
@@ -160,8 +162,7 @@ def render_multi_dashboard(runtimes: list[ModelRuntime]) -> str:
             width,
         ),
         fit_text(
-            "Source    "
-            f"{primary.stats.market_source or '-'} | Ledger {primary.stats.ledger_path or '-'}",
+            f"Source    {primary.stats.market_source or '-'} | Ledger {primary.stats.ledger_path or '-'}",
             width,
         ),
         sub_divider,
@@ -210,11 +211,7 @@ def render_dashboard(state: BotState, guard: DailyGuard, stats: RuntimeStats) ->
     unresolved = state.unresolved_primary_count()
     can_enter, guard_reason = guard.can_enter()
     guard_status = "READY" if can_enter else guard_reason
-    price_age = (
-        format_age(now - state.btc_price_updated_ts)
-        if state.btc_price_updated_ts
-        else "n/a"
-    )
+    price_age = format_age(now - state.btc_price_updated_ts) if state.btc_price_updated_ts else "n/a"
     signal_summary = (
         f"{stats.last_signal_direction} | edge {format_prob(stats.last_signal_edge)} | "
         f"theo {format_prob(stats.last_signal_theo)} | mkt {format_prob(stats.last_signal_market_price)}"
@@ -241,8 +238,7 @@ def render_dashboard(state: BotState, guard: DailyGuard, stats: RuntimeStats) ->
             width,
         ),
         fit_text(
-            "Orderbook "
-            f"UP {format_prob(stats.current_up_ask)} | DOWN {format_prob(stats.current_down_ask)}",
+            f"Orderbook UP {format_prob(stats.current_up_ask)} | DOWN {format_prob(stats.current_down_ask)}",
             width,
         ),
         fit_text(f"Signal    {signal_summary}", width),
@@ -303,9 +299,7 @@ def _build_runtime_status_legacy(runtimes: list[ModelRuntime]) -> dict:
     primary = runtimes[0]
     primary_state = primary.state
     price_age_seconds = (
-        max(0.0, now - primary_state.btc_price_updated_ts)
-        if primary_state.btc_price_updated_ts
-        else None
+        max(0.0, now - primary_state.btc_price_updated_ts) if primary_state.btc_price_updated_ts else None
     )
     return {
         "generated_ts": now,
@@ -414,7 +408,6 @@ def build_runtime_status(
     - Legacy: build_runtime_status(runtimes: list[ModelRuntime])
     - Multi-track: build_runtime_status(tracks: list[ModelTrack], shared_state: BotState, engine_scores: dict)
     """
-    from state.track import ModelTrack  # local import to avoid circular refs at module level
 
     if shared_state is not None:
         # New multi-track signature
@@ -449,7 +442,7 @@ def _build_runtime_status_multi_track(
     next_window_secs = (300 - (int(now) % 300)) if secs_remaining <= 0 else 0
 
     active_tracks = [t for t in tracks if t.active]
-    active_track = active_tracks[0] if active_tracks else tracks[-1]
+    active_tracks[0] if active_tracks else tracks[-1]
     if len(active_tracks) == 1:
         active_track_name = active_tracks[0].name
     elif len(active_tracks) > 1 and all(t.orderer.dry_run for t in active_tracks):
@@ -489,33 +482,35 @@ def _build_runtime_status_multi_track(
             }
 
         # Open positions — all of them with live prices
-        open_positions = (
-            state.current_window.get_open_positions()
-            if state.current_window is not None
-            else []
-        )
+        open_positions = state.current_window.get_open_positions() if state.current_window is not None else []
         open_pos_by_id = {p.order_id: p for p in open_positions}
         all_open_positions_payload = []
         for pos in open_positions:
             if pos.direction == "UP":
-                cur_price = (track.stats.current_up_bid or pos.entry_price) if track.stats else pos.entry_price
+                cur_price = (
+                    (track.stats.current_up_bid or pos.entry_price) if track.stats else pos.entry_price
+                )
                 ask_price = track.stats.current_up_ask if track.stats else None
             else:
-                cur_price = (track.stats.current_down_bid or pos.entry_price) if track.stats else pos.entry_price
+                cur_price = (
+                    (track.stats.current_down_bid or pos.entry_price) if track.stats else pos.entry_price
+                )
                 ask_price = track.stats.current_down_ask if track.stats else None
-            all_open_positions_payload.append({
-                "direction": pos.direction,
-                "role": pos.role,
-                "size_usdc": round(pos.remaining_size_usdc, 2),
-                "entry_price": pos.entry_price,
-                "current_price": round(cur_price, 3),
-                "ask_price": round(ask_price, 3) if ask_price is not None else None,
-                "unrealized_pnl": round(pos.calculate_unrealized_pnl(cur_price), 4),
-                "unrealized_pnl_pct": round(pos.unrealized_pnl_pct(cur_price) * 100, 2),
-                "held_seconds": int(now - pos.entry_ts),
-                "tp": pos.take_profit_price,
-                "sl": pos.stop_loss_price,
-            })
+            all_open_positions_payload.append(
+                {
+                    "direction": pos.direction,
+                    "role": pos.role,
+                    "size_usdc": round(pos.remaining_size_usdc, 2),
+                    "entry_price": pos.entry_price,
+                    "current_price": round(cur_price, 3),
+                    "ask_price": round(ask_price, 3) if ask_price is not None else None,
+                    "unrealized_pnl": round(pos.calculate_unrealized_pnl(cur_price), 4),
+                    "unrealized_pnl_pct": round(pos.unrealized_pnl_pct(cur_price) * 100, 2),
+                    "held_seconds": int(now - pos.entry_ts),
+                    "tp": pos.take_profit_price,
+                    "sl": pos.stop_loss_price,
+                }
+            )
         # Keep legacy single open_position for backwards compat
         open_pos_payload = all_open_positions_payload[0] if all_open_positions_payload else None
 
@@ -555,39 +550,43 @@ def _build_runtime_status_multi_track(
                 if pos.direction == "UP":
                     cur = (track.stats.current_up_bid or pos.entry_price) if track.stats else pos.entry_price
                 else:
-                    cur = (track.stats.current_down_bid or pos.entry_price) if track.stats else pos.entry_price
+                    cur = (
+                        (track.stats.current_down_bid or pos.entry_price) if track.stats else pos.entry_price
+                    )
                 row["live_pnl"] = round(pos.calculate_unrealized_pnl(cur), 4)
                 row["live_pnl_pct"] = round(pos.unrealized_pnl_pct(cur) * 100, 2)
                 row["current_price"] = round(cur, 3)
             all_trades_payload.append(row)
 
-        track_payloads.append({
-            "name": track.name,
-            "css_color": track.css_color,
-            "status": status,
-            "signal": signal_payload,
-            "open_position": open_pos_payload,
-            "open_positions": all_open_positions_payload,
-            "win_stats": {
-                "win_rate": win_rate,
-                "trades": len(resolved),
-                "open": len(trade_history) - len(resolved),
-                "avg_win": avg_win,
-                "avg_loss": avg_loss,
-                "profit_factor": profit_factor,
-                "best_trade": best_trade,
-                "worst_trade": worst_trade,
-                "consecutive_wins": state.consecutive_wins,
-                "consecutive_losses": state.consecutive_losses,
-            },
-            "bankroll": {
-                "available": bankroll_available,
-                "current": bankroll_current,
-                "starting": bankroll_starting,
-            },
-            "all_trades": all_trades_payload,
-            "pnl_history": list(track.pnl_history),
-        })
+        track_payloads.append(
+            {
+                "name": track.name,
+                "css_color": track.css_color,
+                "status": status,
+                "signal": signal_payload,
+                "open_position": open_pos_payload,
+                "open_positions": all_open_positions_payload,
+                "win_stats": {
+                    "win_rate": win_rate,
+                    "trades": len(resolved),
+                    "open": len(trade_history) - len(resolved),
+                    "avg_win": avg_win,
+                    "avg_loss": avg_loss,
+                    "profit_factor": profit_factor,
+                    "best_trade": best_trade,
+                    "worst_trade": worst_trade,
+                    "consecutive_wins": state.consecutive_wins,
+                    "consecutive_losses": state.consecutive_losses,
+                },
+                "bankroll": {
+                    "available": bankroll_available,
+                    "current": bankroll_current,
+                    "starting": bankroll_starting,
+                },
+                "all_trades": all_trades_payload,
+                "pnl_history": list(track.pnl_history),
+            }
+        )
 
     return {
         "generated_ts": now,
@@ -600,7 +599,9 @@ def _build_runtime_status_multi_track(
         "total_pnl": total_pnl,
         "engine_scores": engine_scores,
         "freshness": {
-            "btc_price_age_seconds": round(btc_price_age_seconds, 1) if btc_price_age_seconds is not None else None,
+            "btc_price_age_seconds": round(btc_price_age_seconds, 1)
+            if btc_price_age_seconds is not None
+            else None,
             "btc_price_stale": shared_state.is_price_stale(),
             "btc_price_source": shared_state.price_source or "",
             "btc_price_quorum_met": shared_state.price_feed_quorum_met(now=now),
@@ -624,8 +625,12 @@ def _build_runtime_status_multi_track(
             # active_track would always return null when active_track != BOTH.
             "up_ask": next((t.stats.current_up_ask for t in tracks if t.name == "BOTH" and t.stats), None),
             "up_bid": next((t.stats.current_up_bid for t in tracks if t.name == "BOTH" and t.stats), None),
-            "down_ask": next((t.stats.current_down_ask for t in tracks if t.name == "BOTH" and t.stats), None),
-            "down_bid": next((t.stats.current_down_bid for t in tracks if t.name == "BOTH" and t.stats), None),
+            "down_ask": next(
+                (t.stats.current_down_ask for t in tracks if t.name == "BOTH" and t.stats), None
+            ),
+            "down_bid": next(
+                (t.stats.current_down_bid for t in tracks if t.name == "BOTH" and t.stats), None
+            ),
         },
     }
 

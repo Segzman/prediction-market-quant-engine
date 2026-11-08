@@ -18,6 +18,7 @@ Limitation: logs record momentum at entry, not at SL trigger time. The simulatio
 treats entry momentum as a proxy for momentum at SL trigger, which slightly
 over-estimates suppression applicability.
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -32,12 +33,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 # ── Config (mirror config.py defaults) ──────────────────────────────────────
-EXIT_STOP_LOSS_PCT = 0.04          # SL at entry_price * (1 - 0.04)
-SL_INSTANT_BREACH_PCT = 0.015      # > this below SL → hard crash, never suppress
+EXIT_STOP_LOSS_PCT = 0.04  # SL at entry_price * (1 - 0.04)
+SL_INSTANT_BREACH_PCT = 0.015  # > this below SL → hard crash, never suppress
 SL_BASE_CONFIRMATION_SECONDS = 2.0
 MOMENTUM_SL_SUPPRESS_THRESHOLD = 0.65
 MOMENTUM_SL_MAX_WINDOW_SECONDS = 10.0
-BORDERLINE_BAND = 0.02             # exit within 2% of SL floor = borderline
+BORDERLINE_BAND = 0.02  # exit within 2% of SL floor = borderline
 
 
 # ── Inline suppression scorer (mirrors strategy/signal.py) ──────────────────
@@ -65,9 +66,7 @@ def _extended_window(direction: str, snap: dict) -> float:
     score = _suppression_score(direction, snap)
     if score < MOMENTUM_SL_SUPPRESS_THRESHOLD:
         return SL_BASE_CONFIRMATION_SECONDS
-    t = (score - MOMENTUM_SL_SUPPRESS_THRESHOLD) / max(
-        1.0 - MOMENTUM_SL_SUPPRESS_THRESHOLD, 1e-9
-    )
+    t = (score - MOMENTUM_SL_SUPPRESS_THRESHOLD) / max(1.0 - MOMENTUM_SL_SUPPRESS_THRESHOLD, 1e-9)
     return min(
         SL_BASE_CONFIRMATION_SECONDS + t * (MOMENTUM_SL_MAX_WINDOW_SECONDS - SL_BASE_CONFIRMATION_SECONDS),
         MOMENTUM_SL_MAX_WINDOW_SECONDS,
@@ -89,7 +88,7 @@ class Resolution:
     order_id: str
     final_price: float
     pnl: float
-    status: str   # EARLY_EXIT_STOP_LOSS, WINDOW_RESOLVED, etc.
+    status: str  # EARLY_EXIT_STOP_LOSS, WINDOW_RESOLVED, etc.
 
 
 def load_trades_and_resolutions(paths: list[str]) -> tuple[dict, dict]:
@@ -180,15 +179,15 @@ def run(paths: list[str]) -> None:
     print("\nSL classification:")
     print(
         f"  Hard crash (deep SL, polling lag):  {len(hard_crash):4d}  "
-        f"({100*len(hard_crash)/len(sl_exits):.1f}%)"
+        f"({100 * len(hard_crash) / len(sl_exits):.1f}%)"
     )
     print(
         f"  Borderline — momentum suppressed:   {len(borderline_suppressed):4d}  "
-        f"({100*len(borderline_suppressed)/len(sl_exits):.1f}%)"
+        f"({100 * len(borderline_suppressed) / len(sl_exits):.1f}%)"
     )
     print(
         f"  Borderline — momentum not met:      {len(borderline_unsuppressed):4d}  "
-        f"({100*len(borderline_unsuppressed)/len(sl_exits):.1f}%)"
+        f"({100 * len(borderline_unsuppressed) / len(sl_exits):.1f}%)"
     )
 
     # Baseline PnL
@@ -209,7 +208,7 @@ def run(paths: list[str]) -> None:
         # Optimistic: suppression worked, position recovered to break-even
         opt_delta = -bl_sup_pnl  # recover all the loss
         # Pessimistic: suppression delayed but price fell further (doubled loss)
-        pes_delta = bl_sup_pnl   # same loss again
+        pes_delta = bl_sup_pnl  # same loss again
         # Neutral: 50/50
         neu_delta = 0.0
 
@@ -221,8 +220,8 @@ def run(paths: list[str]) -> None:
 
         print("\nMomentum scores for suppressed borderline SLs:")
         scores = sorted([score for _, _, score, __ in borderline_suppressed])
-        print(f"  Min: {min(scores):.3f}  Median: {scores[len(scores)//2]:.3f}  Max: {max(scores):.3f}")
-        print(f"  Extension windows: {sorted(set(round(w,1) for _,_,_,w in borderline_suppressed))}")
+        print(f"  Min: {min(scores):.3f}  Median: {scores[len(scores) // 2]:.3f}  Max: {max(scores):.3f}")
+        print(f"  Extension windows: {sorted(set(round(w, 1) for _, _, _, w in borderline_suppressed))}")
 
     # Show score distribution for ALL SL exits
     all_scores = [_suppression_score(t.direction, t.snap) for t, _, *_ in sl_exits]
@@ -243,9 +242,11 @@ def run(paths: list[str]) -> None:
         bar = "█" * (v * 40 // max(len(sl_exits), 1))
         print(f"  {k:>12}: {v:4d}  {bar}")
 
-    print(f"\nNote: Scores ≥ 0.65 ({buckets['0.65–0.80'] + buckets['≥0.80']} exits) are "
-          "suppression candidates. Among those, only BORDERLINE SLs are affected.\n"
-          "Hard crashes (price >> SL) are never suppressed regardless of momentum score.")
+    print(
+        f"\nNote: Scores ≥ 0.65 ({buckets['0.65–0.80'] + buckets['≥0.80']} exits) are "
+        "suppression candidates. Among those, only BORDERLINE SLs are affected.\n"
+        "Hard crashes (price >> SL) are never suppressed regardless of momentum score."
+    )
 
 
 def _explain_feature_from_existing_trades(trades: dict) -> None:
@@ -258,11 +259,12 @@ def _explain_feature_from_existing_trades(trades: dict) -> None:
         scores.append(_suppression_score(t.direction, t.snap))
     scores.sort()
     high = sum(1 for s in scores if s >= MOMENTUM_SL_SUPPRESS_THRESHOLD)
-    print(f"  Entries with suppression-eligible momentum (score ≥ {MOMENTUM_SL_SUPPRESS_THRESHOLD}): "
-          f"{high}/{len(scores)} ({100*high/max(len(scores),1):.1f}%)")
+    print(
+        f"  Entries with suppression-eligible momentum (score ≥ {MOMENTUM_SL_SUPPRESS_THRESHOLD}): "
+        f"{high}/{len(scores)} ({100 * high / max(len(scores), 1):.1f}%)"
+    )
     if scores:
-        print(f"  Score range: {scores[0]:.3f} – {scores[-1]:.3f}, "
-              f"median {scores[len(scores)//2]:.3f}")
+        print(f"  Score range: {scores[0]:.3f} – {scores[-1]:.3f}, median {scores[len(scores) // 2]:.3f}")
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ Uses the real signal engine (simulate_models.py core) with:
   - Exit model: low-conv (5s TP exit, 15s hard exit), high-conv (15s+ext time exit, 30% SL)
 Reports full P&L, win rate, avg win/loss, drawdown, and trade count.
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -31,12 +32,12 @@ from strategy.probability import ModelContext
 from strategy.signal import evaluate_with_diagnostics
 
 # ── Config (mirrors config.py) ────────────────────────────────────────────────
-STAKE = 5.0               # MIN_BET = MAX_BET = $5
+STAKE = 5.0  # MIN_BET = MAX_BET = $5
 STARTING_BANKROLL = 10.0  # STARTING_BANKROLL_USDC = $10
-MAX_DAILY_LOSS = 20.0     # MAX_DAILY_LOSS_USDC = $20 (would halt trading)
+MAX_DAILY_LOSS = 20.0  # MAX_DAILY_LOSS_USDC = $20 (would halt trading)
 MAX_TRADES_PER_DAY = 100  # MAX_TRADES_PER_DAY
-COOLDOWN_HIGH = 1         # COOLDOWN_SECONDS (high-conviction ≥0.70)
-COOLDOWN_LOW = 10         # LOW_CONVICTION_COOLDOWN_SECONDS
+COOLDOWN_HIGH = 1  # COOLDOWN_SECONDS (high-conviction ≥0.70)
+COOLDOWN_LOW = 10  # LOW_CONVICTION_COOLDOWN_SECONDS
 CONSECUTIVE_LOSS_LIMIT = 3
 CONSECUTIVE_LOSS_PAUSE = 60  # seconds
 
@@ -44,35 +45,35 @@ HIGH_CONVICTION_THRESHOLD = 0.70
 HIGH_CONVICTION_BLOCKED_SECONDS = 120  # blocked first 2 min
 
 # Exit rules
-LOW_CONV_TP_PCT = 0.15       # EXIT_TAKE_PROFIT_PCT: take profit at +15% of entry price
-LOW_CONV_TIME_EXIT_S = 5     # EXIT_TIME_SECONDS: exit at 5s if profitable
-LOW_CONV_HARD_EXIT_S = 15    # LOW_CONVICTION_HARD_TIME_EXIT
-HIGH_CONV_SL_PCT = 0.30      # HIGH_CONVICTION_SL_PCT
-HIGH_CONV_TIME_EXIT_S = 15   # HIGH_CONVICTION_TIME_EXIT
-HIGH_CONV_TIME_EXT_S = 5     # HIGH_CONVICTION_TIME_EXTENSION_SECONDS
-EXIT_SL_PCT_LOW = 0.10       # EXIT_STOP_LOSS_PCT (low conviction)
+LOW_CONV_TP_PCT = 0.15  # EXIT_TAKE_PROFIT_PCT: take profit at +15% of entry price
+LOW_CONV_TIME_EXIT_S = 5  # EXIT_TIME_SECONDS: exit at 5s if profitable
+LOW_CONV_HARD_EXIT_S = 15  # LOW_CONVICTION_HARD_TIME_EXIT
+HIGH_CONV_SL_PCT = 0.30  # HIGH_CONVICTION_SL_PCT
+HIGH_CONV_TIME_EXIT_S = 15  # HIGH_CONVICTION_TIME_EXIT
+HIGH_CONV_TIME_EXT_S = 5  # HIGH_CONVICTION_TIME_EXTENSION_SECONDS
+EXIT_SL_PCT_LOW = 0.10  # EXIT_STOP_LOSS_PCT (low conviction)
 
 SECONDS_PER_WINDOW = 300
-WINDOWS_PER_DAY = 288        # 24h × 12/h
-ENTRY_EVAL_STEP = 5          # evaluate signal every 5s
+WINDOWS_PER_DAY = 288  # 24h × 12/h
+ENTRY_EVAL_STEP = 5  # evaluate signal every 5s
 
 # Volatile BTC path params
-LATENT_TREND_SIGMA_VOLATILE = 4e-5   # 2× the normal 1.8e-5 in simulate_models
-NOISE_SIGMA_VOLATILE        = 2.2e-4  # 2× normal 1.1e-4
-LATENT_TREND_SIGMA_NORMAL   = 1.8e-5
-NOISE_SIGMA_NORMAL          = 1.1e-4
+LATENT_TREND_SIGMA_VOLATILE = 4e-5  # 2× the normal 1.8e-5 in simulate_models
+NOISE_SIGMA_VOLATILE = 2.2e-4  # 2× normal 1.1e-4
+LATENT_TREND_SIGMA_NORMAL = 1.8e-5
+NOISE_SIGMA_NORMAL = 1.1e-4
 
 
 @dataclass
 class TradeResult:
     window_idx: int
-    entry_price: float      # contract price paid
-    direction: str          # "UP" | "DOWN"
+    entry_price: float  # contract price paid
+    direction: str  # "UP" | "DOWN"
     stake: float
-    regime: str             # "MISPRICING" | "LATE_CONVICTION"
-    conviction: float       # market_conviction score
+    regime: str  # "MISPRICING" | "LATE_CONVICTION"
+    conviction: float  # market_conviction score
     btc_confirmed: bool
-    exit_reason: str        # WIN_TP | WIN_TIME | WIN_WINDOW | LOSS_SL | LOSS_TIME | LOSS_WINDOW
+    exit_reason: str  # WIN_TP | WIN_TIME | WIN_WINDOW | LOSS_SL | LOSS_TIME | LOSS_WINDOW
     pnl: float
     won: bool
 
@@ -137,9 +138,7 @@ def market_asks(
 def rolling_volatility(path: list[float], elapsed: int) -> float:
     start = max(1, elapsed - 30)
     returns = [
-        math.log(path[i] / path[i-1])
-        for i in range(start, elapsed + 1)
-        if path[i-1] > 0 and path[i] > 0
+        math.log(path[i] / path[i - 1]) for i in range(start, elapsed + 1) if path[i - 1] > 0 and path[i] > 0
     ]
     if len(returns) < 2:
         return 0.0
@@ -151,7 +150,7 @@ def simulate_position_exit(
     stake: float,
     direction: str,
     regime: str,
-    path_slice: list[float],   # BTC prices from entry second onward
+    path_slice: list[float],  # BTC prices from entry second onward
     rng: random.Random,
 ) -> tuple[float, str, bool]:
     """
@@ -297,15 +296,17 @@ def simulate_one_day(
             strongest_price = max(up_ask, down_ask)
             supporting_momentum = up_momentum if strongest_side == "UP" else down_momentum
             supporting_acceleration = up_accel if strongest_side == "UP" else down_accel
-            market_conviction = min(1.0, max(0.0,
-                strongest_price * 0.72
-                + min(supporting_momentum * 10, 0.18)
-                + min(supporting_acceleration * 10, 0.08)
-                + 0.12  # assume liquid book
-            ))
-            if (strongest_side == "UP" and move_pct > 0) or (
-                strongest_side == "DOWN" and move_pct < 0
-            ):
+            market_conviction = min(
+                1.0,
+                max(
+                    0.0,
+                    strongest_price * 0.72
+                    + min(supporting_momentum * 10, 0.18)
+                    + min(supporting_acceleration * 10, 0.08)
+                    + 0.12,  # assume liquid book
+                ),
+            )
+            if (strongest_side == "UP" and move_pct > 0) or (strongest_side == "DOWN" and move_pct < 0):
                 btc_poly_agreement = 1.0
             elif move_pct != 0:
                 btc_poly_agreement = -1.0
@@ -384,18 +385,20 @@ def simulate_one_day(
             stats.trades += 1
             stats.total_pnl += pnl
 
-            trade_log.append(TradeResult(
-                window_idx=window_idx,
-                entry_price=entry_price,
-                direction=direction,
-                stake=STAKE,
-                regime=signal.entry_regime,
-                conviction=signal.market_conviction,
-                btc_confirmed=signal.btc_confirmed,
-                exit_reason=exit_reason,
-                pnl=pnl,
-                won=won,
-            ))
+            trade_log.append(
+                TradeResult(
+                    window_idx=window_idx,
+                    entry_price=entry_price,
+                    direction=direction,
+                    stake=STAKE,
+                    regime=signal.entry_regime,
+                    conviction=signal.market_conviction,
+                    btc_confirmed=signal.btc_confirmed,
+                    exit_reason=exit_reason,
+                    pnl=pnl,
+                    won=won,
+                )
+            )
 
             break  # one trade per window pass (re-evaluate at next step)
 
@@ -425,15 +428,15 @@ def report(days: list[DayStats], label: str, n_sessions: int) -> None:
     def pct_positive(vals: list[float]) -> float:
         return 100 * sum(1 for v in vals if v > 0) / len(vals) if vals else 0
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"  {label}  ({n_sessions} simulated days)")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     print(f"  Starting bankroll:       ${STARTING_BANKROLL:.2f}")
     print(f"  Bet size:                ${STAKE:.2f} (fixed)")
     print(f"  Max daily loss guard:    ${MAX_DAILY_LOSS:.2f}")
     print()
     print(f"  {'Metric':<30} {'Median':>10}  {'Mean':>10}  {'Worst':>10}  {'Best':>10}")
-    print(f"  {'-'*64}")
+    print(f"  {'-' * 64}")
 
     def row(label: str, vals: list[float], fmt: str = "{:+.2f}") -> None:
         if not vals:
@@ -480,9 +483,9 @@ def report(days: list[DayStats], label: str, n_sessions: int) -> None:
 
 def detail_one_day(rng: random.Random, volatile: bool) -> None:
     stats, log = simulate_one_day(rng, volatile=volatile)
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"  SINGLE DAY DETAIL (volatile={volatile})")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     print(f"  Total P&L:  ${stats.total_pnl:+.2f}")
     print(f"  Bankroll:   ${STARTING_BANKROLL:.2f} → ${STARTING_BANKROLL + stats.total_pnl:.2f}")
     print(f"  Trades:     {stats.trades}")
@@ -526,15 +529,17 @@ def detail_one_day(rng: random.Random, volatile: bool) -> None:
         print("\n  Last 10 trades:")
         for i, t in enumerate(log[-10:], 1):
             win_str = "WIN " if t.won else "LOSS"
-            print(f"    {i:>2}. W{t.window_idx:>3} {t.direction:<4} {win_str} ${t.pnl:+.3f}  "
-                  f"@ {t.entry_price:.3f} [{t.regime[:4]}] [{t.exit_reason}]")
+            print(
+                f"    {i:>2}. W{t.window_idx:>3} {t.direction:<4} {win_str} ${t.pnl:+.3f}  "
+                f"@ {t.entry_price:.3f} [{t.regime[:4]}] [{t.exit_reason}]"
+            )
 
 
 def main() -> None:
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("  FULL-DAY VOLATILE BTC SIMULATION")
     print("  Real signal engine, $5 bets, $10 bankroll, 288 windows/day")
-    print("="*70)
+    print("=" * 70)
 
     N_MONTE_CARLO = 200
 
@@ -553,9 +558,9 @@ def main() -> None:
     report(normal_days, "NORMAL BTC DAY (baseline)", N_MONTE_CARLO)
 
     # ── Summary comparison ────────────────────────────────────────────────────
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("  SUMMARY: $10 Bankroll / $5 Bet Full-Day Results")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     for label, days in [("Volatile", volatile_days), ("Normal", normal_days)]:
         pnls = [d.total_pnl for d in days]

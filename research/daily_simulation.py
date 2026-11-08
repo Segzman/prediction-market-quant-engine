@@ -3,6 +3,7 @@
 Daily Trading Simulation - $1 Primary Bets
 Tests different win rates over a full day of trading (288 windows).
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -67,6 +68,7 @@ def calculate_pnl(
 
 # ============== HEDGE STRATEGIES ==============
 
+
 def strategy_no_hedge(
     primary_bet: float,
     bankroll: float,
@@ -121,8 +123,8 @@ def strategy_drawdown_scaled(
     hedge = min(hedge, bankroll * 0.9 - primary_bet)
 
     if bankroll < primary_bet + hedge:
-        return PositionPlan(primary_bet, 0.0, 0.0, False, f"DD_{int(fraction*100)}%_SKIP")
-    return PositionPlan(primary_bet, round(hedge, 2), 0.0, True, f"DD_{int(fraction*100)}%")
+        return PositionPlan(primary_bet, 0.0, 0.0, False, f"DD_{int(fraction * 100)}%_SKIP")
+    return PositionPlan(primary_bet, round(hedge, 2), 0.0, True, f"DD_{int(fraction * 100)}%")
 
 
 def strategy_loss_cap_2pct(
@@ -154,6 +156,7 @@ def strategy_loss_cap_2pct(
 
 
 # ============== SIMULATION ==============
+
 
 def run_daily_simulation(
     strategy_fn: Callable,
@@ -191,8 +194,10 @@ def run_daily_simulation(
 
         # Determine outcome based on win rate
         is_win = random.random() < win_rate
-        actual_outcome = primary_direction if is_win else (
-            Direction.DOWN if primary_direction == Direction.UP else Direction.UP
+        actual_outcome = (
+            primary_direction
+            if is_win
+            else (Direction.DOWN if primary_direction == Direction.UP else Direction.UP)
         )
 
         # Get hedge plan
@@ -252,7 +257,7 @@ def run_daily_simulation(
 def print_daily_results(results: dict):
     """Print formatted daily results."""
     bust_str = " *** BUSTED ***" if results["busted"] else ""
-    print(f"\n  {results['strategy']} @ {results['win_rate']*100:.0f}% Win Rate{bust_str}")
+    print(f"\n  {results['strategy']} @ {results['win_rate'] * 100:.0f}% Win Rate{bust_str}")
     print(f"  {'─' * 60}")
     print(f"    Start:     ${results['starting_bankroll']:.2f}")
     print(f"    End:       ${results['ending_bankroll']:.2f}")
@@ -282,13 +287,12 @@ def main():
 
     for win_rate in win_rates:
         print(f"\n{'=' * 70}")
-        print(f"  WIN RATE: {win_rate*100:.0f}%")
+        print(f"  WIN RATE: {win_rate * 100:.0f}%")
         print(f"{'=' * 70}")
 
         for strategy_fn, name in strategies:
             results = run_daily_simulation(
-                strategy_fn, name, win_rate,
-                num_trades=288, starting_bankroll=100.0, seed=42
+                strategy_fn, name, win_rate, num_trades=288, starting_bankroll=100.0, seed=42
             )
             print_daily_results(results)
 
@@ -302,8 +306,7 @@ def main():
         row = f"  {name:<18} |"
         for win_rate in win_rates:
             results = run_daily_simulation(
-                strategy_fn, name, win_rate,
-                num_trades=288, starting_bankroll=100.0, seed=42
+                strategy_fn, name, win_rate, num_trades=288, starting_bankroll=100.0, seed=42
             )
             ending = results["ending_bankroll"]
             status = "BUST" if results["busted"] else f"${ending:.0f}"

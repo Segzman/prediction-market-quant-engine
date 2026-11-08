@@ -15,6 +15,7 @@ import json
 import os
 import time
 import urllib.request
+from typing import Any
 
 from config import (
     JEV_API_TIMEOUT_SECONDS,
@@ -54,7 +55,7 @@ def _cache_put(key: tuple, value: float | None) -> None:
     _cache[key] = (value, time.time())
 
 
-def _features(model_context) -> dict:
+def _features(model_context: Any) -> dict:
     if model_context is None:
         return {}
     return {
@@ -68,7 +69,7 @@ def _features(model_context) -> dict:
 
 def _decision_record(
     *,
-    model_context,
+    model_context: Any,
     seconds_remaining: int,
     market_price: float,
     window_id: str | None,
@@ -226,7 +227,7 @@ def query_btc_agreement(
 
 
 def resolve_btc_confirmation(
-    model_context,
+    model_context: Any,
     *,
     seconds_remaining: int,
     market_price: float,
@@ -251,7 +252,7 @@ def resolve_btc_confirmation(
         "deterministic": deterministic,
     }
 
-    def log(**overrides) -> None:
+    def log(**overrides: Any) -> None:
         record = _decision_record(**base, **overrides)
         try:
             _log_decision(record)

@@ -24,7 +24,7 @@ SESSION_GAP_SECONDS = 30 * 60
 def _read_jsonl(path: str | Path) -> list[dict]:
     records: list[dict] = []
     try:
-        with open(path, "r", encoding="utf-8") as handle:
+        with open(path, encoding="utf-8") as handle:
             for line in handle:
                 line = line.strip()
                 if not line:
@@ -75,14 +75,12 @@ def _percentile(values: list[float], pct: float) -> float | None:
 
 def _session_count(records: list[dict]) -> int:
     timestamps = sorted(
-        float(record["ts"])
-        for record in records
-        if isinstance(record.get("ts"), (int, float))
+        float(record["ts"]) for record in records if isinstance(record.get("ts"), (int, float))
     )
     if not timestamps:
         return 1 if records else 0
     sessions = 1
-    for previous, current in zip(timestamps, timestamps[1:]):
+    for previous, current in zip(timestamps, timestamps[1:], strict=False):
         if current - previous > SESSION_GAP_SECONDS:
             sessions += 1
     return sessions
@@ -92,8 +90,7 @@ def _accuracy(records: list[dict], outcomes: dict[int, bool]) -> dict:
     joined = [
         record
         for record in records
-        if record.get("window_end_ts") in outcomes
-        and record.get("strongest_side") in {"UP", "DOWN"}
+        if record.get("window_end_ts") in outcomes and record.get("strongest_side") in {"UP", "DOWN"}
     ]
     correct = 0
     for record in joined:
@@ -121,39 +118,27 @@ def build_report(records: list[dict], outcomes: dict[int, bool] | None = None) -
     ]
     errors = [record for record in api_calls if record.get("error_class")]
 
-    with_jev = [
-        record for record in records if record.get("jev_decision") is not None
-    ]
+    with_jev = [record for record in records if record.get("jev_decision") is not None]
     agreed = [
-        record
-        for record in with_jev
-        if record.get("jev_decision") == record.get("deterministic_decision")
+        record for record in with_jev if record.get("jev_decision") == record.get("deterministic_decision")
     ]
     changed = [
-        record
-        for record in with_jev
-        if record.get("jev_decision") != record.get("deterministic_decision")
+        record for record in with_jev if record.get("jev_decision") != record.get("deterministic_decision")
     ]
 
-    total_cost = sum(
-        float(record.get("estimated_cost_usd") or 0.0) for record in records
-    )
+    total_cost = sum(float(record.get("estimated_cost_usd") or 0.0) for record in records)
     sessions = _session_count(records)
 
     joined = [
         record
         for record in records
-        if record.get("window_end_ts") in outcomes
-        and record.get("strongest_side") in {"UP", "DOWN"}
+        if record.get("window_end_ts") in outcomes and record.get("strongest_side") in {"UP", "DOWN"}
     ]
-    jev_confirmed = [
-        record for record in joined if record.get("jev_decision") is True
-    ]
+    jev_confirmed = [record for record in joined if record.get("jev_decision") is True]
     deterministic_only = [
         record
         for record in joined
-        if record.get("jev_decision") is None
-        and record.get("deterministic_decision") is True
+        if record.get("jev_decision") is None and record.get("deterministic_decision") is True
     ]
 
     query_attempts = len(api_calls) + len(cache_hits)
@@ -161,9 +146,7 @@ def build_report(records: list[dict], outcomes: dict[int, bool] | None = None) -
         "total_decisions": len(records),
         "api_calls": len(api_calls),
         "cache_hits": len(cache_hits),
-        "cache_hit_rate": (
-            len(cache_hits) / query_attempts if query_attempts else 0.0
-        ),
+        "cache_hit_rate": (len(cache_hits) / query_attempts if query_attempts else 0.0),
         "skipped_by_reason": skipped_by_reason,
         "latency_p50_ms": _percentile(latencies, 50),
         "latency_p95_ms": _percentile(latencies, 95),
@@ -176,16 +159,11 @@ def build_report(records: list[dict], outcomes: dict[int, bool] | None = None) -
         "total_cost_usd": total_cost,
         "sessions": sessions,
         "cost_per_session_usd": total_cost / sessions if sessions else 0.0,
-        "cost_per_api_call_usd": (
-            total_cost / len(api_calls) if api_calls else 0.0
-        ),
+        "cost_per_api_call_usd": (total_cost / len(api_calls) if api_calls else 0.0),
         "joined_outcomes": len(joined),
         "jev_confirmed": _accuracy(jev_confirmed, outcomes),
         "deterministic_only": _accuracy(deterministic_only, outcomes),
-        "small_sample": (
-            len(jev_confirmed) < SMALL_SAMPLE_MIN
-            or len(deterministic_only) < SMALL_SAMPLE_MIN
-        ),
+        "small_sample": (len(jev_confirmed) < SMALL_SAMPLE_MIN or len(deterministic_only) < SMALL_SAMPLE_MIN),
     }
 
 

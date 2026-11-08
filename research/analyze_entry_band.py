@@ -5,6 +5,7 @@ Parses all .web_runtime/*.log files, matches entry lines to exit lines by order_
 classifies trades into entry bands, and simulates three portfolios to evaluate a
 proposed new entry strategy.
 """
+
 import pathlib
 import sys
 
@@ -46,13 +47,14 @@ EXIT_RE = re.compile(
 # Data model
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Trade:
     order_id: str
     direction: str
     edge: float
     theo: float
-    market: float      # entry market price
+    market: float  # entry market price
     bet: float
     reason: str = ""
     entry_price: float = 0.0
@@ -60,13 +62,15 @@ class Trade:
     pnl_pct: float = 0.0
     band: str = ""
 
+
 # ---------------------------------------------------------------------------
 # Parsing
 # ---------------------------------------------------------------------------
 
+
 def parse_logs(log_glob: str):
-    entries: dict[str, Trade] = {}   # order_id -> Trade (first seen wins)
-    exits: dict[str, dict] = {}      # order_id -> exit info (first seen wins)
+    entries: dict[str, Trade] = {}  # order_id -> Trade (first seen wins)
+    exits: dict[str, dict] = {}  # order_id -> exit info (first seen wins)
 
     log_files = sorted(glob.glob(log_glob))
     if not log_files:
@@ -131,9 +135,11 @@ def parse_logs(log_glob: str):
     print(f"  Matched (entry+exit): {len(matched)}")
     return matched
 
+
 # ---------------------------------------------------------------------------
 # Band classification
 # ---------------------------------------------------------------------------
+
 
 def classify_band(trade: Trade) -> str:
     m = trade.market
@@ -154,9 +160,11 @@ def classify_band(trade: Trade) -> str:
 
     return "OUTSIDE"
 
+
 # ---------------------------------------------------------------------------
 # Portfolio simulation
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class PortfolioStats:
@@ -197,9 +205,9 @@ class PortfolioStats:
                 pnl = max(pnl, cap_sl)
 
             pnls.append(pnl)
-            total_dollar_pnl += pnl / 100.0 * 5.0   # always $5 per trade nominal
+            total_dollar_pnl += pnl / 100.0 * 5.0  # always $5 per trade nominal
 
-            bankroll *= (1.0 + pnl / 100.0)
+            bankroll *= 1.0 + pnl / 100.0
 
             if pnl > 0:
                 wins += 1
@@ -233,14 +241,23 @@ class PortfolioStats:
 
     def _empty(self):
         return {
-            "total": 0, "win_rate": 0, "avg_pnl": 0, "total_dollar_pnl": 0,
-            "avg_sl_pnl": float("nan"), "avg_tp_pnl": float("nan"),
-            "sl_count": 0, "tp_count": 0, "time_count": 0, "final_bankroll": 50.0,
+            "total": 0,
+            "win_rate": 0,
+            "avg_pnl": 0,
+            "total_dollar_pnl": 0,
+            "avg_sl_pnl": float("nan"),
+            "avg_tp_pnl": float("nan"),
+            "sl_count": 0,
+            "tp_count": 0,
+            "time_count": 0,
+            "final_bankroll": 50.0,
         }
+
 
 # ---------------------------------------------------------------------------
 # Printing
 # ---------------------------------------------------------------------------
+
 
 def fmt(v, fmt_str):
     try:
@@ -248,19 +265,30 @@ def fmt(v, fmt_str):
     except (TypeError, ValueError):
         return "  n/a"
 
+
 def print_comparison(stats_list: list[tuple[str, dict]]):
     headers = [
-        "Portfolio", "Trades", "Win%", "Avg PnL%", "$ PnL",
-        "Avg SL%", "Avg TP%", "SL#", "TP#", "TIME#", "Final $",
+        "Portfolio",
+        "Trades",
+        "Win%",
+        "Avg PnL%",
+        "$ PnL",
+        "Avg SL%",
+        "Avg TP%",
+        "SL#",
+        "TP#",
+        "TIME#",
+        "Final $",
     ]
     col_w = [24, 7, 7, 9, 9, 8, 8, 5, 5, 6, 9]
 
     sep = "+" + "+".join("-" * w for w in col_w) + "+"
+
     def row(*cells):
         parts = []
         for val, w in zip(cells, col_w, strict=False):
             s = str(val)
-            parts.append(f" {s:<{w-1}}")
+            parts.append(f" {s:<{w - 1}}")
         return "|" + "|".join(parts) + "|"
 
     print()
@@ -272,21 +300,24 @@ def print_comparison(stats_list: list[tuple[str, dict]]):
     print(sep)
 
     for name, s in stats_list:
-        print(row(
-            name,
-            s["total"],
-            f"{s['win_rate']:.1f}%",
-            f"{s['avg_pnl']:+.2f}%",
-            f"${s['total_dollar_pnl']:+.2f}",
-            fmt(s["avg_sl_pnl"], "+.2f") + "%",
-            fmt(s["avg_tp_pnl"], "+.2f") + "%",
-            s["sl_count"],
-            s["tp_count"],
-            s["time_count"],
-            f"${s['final_bankroll']:.2f}",
-        ))
+        print(
+            row(
+                name,
+                s["total"],
+                f"{s['win_rate']:.1f}%",
+                f"{s['avg_pnl']:+.2f}%",
+                f"${s['total_dollar_pnl']:+.2f}",
+                fmt(s["avg_sl_pnl"], "+.2f") + "%",
+                fmt(s["avg_tp_pnl"], "+.2f") + "%",
+                s["sl_count"],
+                s["tp_count"],
+                s["time_count"],
+                f"${s['final_bankroll']:.2f}",
+            )
+        )
     print(sep)
     print()
+
 
 def print_band_breakdown(band_trades: dict[str, list[Trade]]):
     print("=" * 70)
@@ -315,7 +346,7 @@ def print_band_breakdown(band_trades: dict[str, list[Trade]]):
     if old:
         wins = sum(1 for t in old if t.pnl_pct > 0)
         avg = sum(t.pnl_pct for t in old) / len(old)
-        print(f"    Count: {len(old)}  |  Win rate: {wins/len(old)*100:.1f}%  |  Avg PnL: {avg:+.2f}%")
+        print(f"    Count: {len(old)}  |  Win rate: {wins / len(old) * 100:.1f}%  |  Avg PnL: {avg:+.2f}%")
         worst = sorted(old, key=lambda t: t.pnl_pct)[:5]
         print("    5 worst OLD_BAND trades:")
         for t in worst:
@@ -324,9 +355,11 @@ def print_band_breakdown(band_trades: dict[str, list[Trade]]):
         print("    (none)")
     print()
 
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def main():
     log_glob = ".web_runtime/*.log"
@@ -340,7 +373,10 @@ def main():
         trade.band = classify_band(trade)
 
     band_map: dict[str, list[Trade]] = {
-        "OLD_BAND": [], "NEW_BAND": [], "LATE_CONVICTION": [], "OUTSIDE": [],
+        "OLD_BAND": [],
+        "NEW_BAND": [],
+        "LATE_CONVICTION": [],
+        "OUTSIDE": [],
     }
     for trade in matched:
         band_map[trade.band].append(trade)
@@ -369,11 +405,13 @@ def main():
     stats_B = pb.compute()
     stats_C = pc.compute(cap_sl=-5.0)
 
-    print_comparison([
-        ("A — Old strategy",     stats_A),
-        ("B — New strategy",     stats_B),
-        ("C — New + ideal SL",   stats_C),
-    ])
+    print_comparison(
+        [
+            ("A — Old strategy", stats_A),
+            ("B — New strategy", stats_B),
+            ("C — New + ideal SL", stats_C),
+        ]
+    )
 
     print_band_breakdown(band_map)
 
@@ -382,9 +420,9 @@ def main():
         print("=" * 70)
         print("  DECISION VALIDATION SUMMARY")
         print("=" * 70)
-        delta_wr  = stats_B["win_rate"] - stats_A["win_rate"]
-        delta_pnl = stats_B["avg_pnl"]  - stats_A["avg_pnl"]
-        delta_br  = stats_B["final_bankroll"] - stats_A["final_bankroll"]
+        delta_wr = stats_B["win_rate"] - stats_A["win_rate"]
+        delta_pnl = stats_B["avg_pnl"] - stats_A["avg_pnl"]
+        delta_br = stats_B["final_bankroll"] - stats_A["final_bankroll"]
         delta_br_c = stats_C["final_bankroll"] - stats_A["final_bankroll"]
 
         print(f"  B vs A  — Win rate change   : {delta_wr:+.1f}pp")
@@ -395,6 +433,7 @@ def main():
         verdict = "POSITIVE" if delta_pnl >= 0 and delta_br >= 0 else "NEGATIVE"
         print(f"  Overall signal from dropping OLD_BAND: {verdict}")
         print()
+
 
 if __name__ == "__main__":
     main()

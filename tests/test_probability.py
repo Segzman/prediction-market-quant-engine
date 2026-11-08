@@ -1,16 +1,17 @@
 import json
 import os
+
 import pytest
 
 from strategy import probability as probability_mod
 from strategy.probability import (
     ModelContext,
-    build_calibration_regime_key,
     bucket_acceleration,
     bucket_directional_consistency,
     bucket_move_pct,
     bucket_probability,
     bucket_seconds_remaining,
+    build_calibration_regime_key,
     build_model_c_bucket_key,
     get_probability,
     model_a_momentum,
@@ -221,12 +222,8 @@ def test_model_c_uses_calibration_file_when_available(tmp_path):
     calibration_path.write_text(
         json.dumps(
             {
-                "buckets": {
-                    bucket_key: {"samples": 20, "up_probability": 0.81}
-                },
-                "regimes": {
-                    regime_key: {"samples": 20, "up_probability": 0.77}
-                },
+                "buckets": {bucket_key: {"samples": 20, "up_probability": 0.81}},
+                "regimes": {regime_key: {"samples": 20, "up_probability": 0.77}},
             }
         ),
         encoding="utf-8",
@@ -259,9 +256,7 @@ def test_model_c_uses_regime_calibration_when_bucket_missing(tmp_path):
         json.dumps(
             {
                 "buckets": {},
-                "regimes": {
-                    regime_key: {"samples": 25, "up_probability": 0.32}
-                },
+                "regimes": {regime_key: {"samples": 25, "up_probability": 0.32}},
             }
         ),
         encoding="utf-8",
@@ -321,12 +316,8 @@ def test_pooled_probability_stays_bounded_and_respects_extreme_market_caution():
         market_implied_up_probability=0.91,
     )
 
-    supportive = get_probability(
-        100.0, 100.2, 18, volatility=0.0003, model="P", context=supportive_context
-    )
-    weak_book = get_probability(
-        100.0, 100.2, 18, volatility=0.0003, model="P", context=weak_book_context
-    )
+    supportive = get_probability(100.0, 100.2, 18, volatility=0.0003, model="P", context=supportive_context)
+    weak_book = get_probability(100.0, 100.2, 18, volatility=0.0003, model="P", context=weak_book_context)
 
     assert 0.05 <= supportive <= 0.95
     assert 0.05 <= weak_book <= 0.95
@@ -361,10 +352,38 @@ def test_model_c_ledger_fallback_excludes_resolutions_after_decision_ts(tmp_path
     ledger.write_text(
         "\n".join(
             [
-                json.dumps({"type": "resolution", "model_c_bucket": meta_key, "window_end_ts": 1100, "resolved_up": True}),
-                json.dumps({"type": "resolution", "model_c_bucket": meta_key, "window_end_ts": 1200, "resolved_up": False}),
-                json.dumps({"type": "resolution", "model_c_bucket": meta_key, "window_end_ts": 1250, "resolved_up": True}),
-                json.dumps({"type": "resolution", "model_c_bucket": meta_key, "window_end_ts": 1500, "resolved_up": True}),
+                json.dumps(
+                    {
+                        "type": "resolution",
+                        "model_c_bucket": meta_key,
+                        "window_end_ts": 1100,
+                        "resolved_up": True,
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "resolution",
+                        "model_c_bucket": meta_key,
+                        "window_end_ts": 1200,
+                        "resolved_up": False,
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "resolution",
+                        "model_c_bucket": meta_key,
+                        "window_end_ts": 1250,
+                        "resolved_up": True,
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "resolution",
+                        "model_c_bucket": meta_key,
+                        "window_end_ts": 1500,
+                        "resolved_up": True,
+                    }
+                ),
                 json.dumps({"type": "resolution", "model_c_bucket": meta_key, "resolved_up": True}),
                 json.dumps({"type": "order_intent", "model_c_bucket": meta_key, "window_end_ts": 1100}),
             ]
@@ -387,9 +406,30 @@ def test_model_c_ledger_cache_rereads_only_after_mtime_change(tmp_path, monkeypa
     ledger.write_text(
         "\n".join(
             [
-                json.dumps({"type": "resolution", "model_c_bucket": meta_key, "window_end_ts": 1100, "resolved_up": True}),
-                json.dumps({"type": "resolution", "model_c_bucket": meta_key, "window_end_ts": 1200, "resolved_up": True}),
-                json.dumps({"type": "resolution", "model_c_bucket": meta_key, "window_end_ts": 1150, "resolved_up": True}),
+                json.dumps(
+                    {
+                        "type": "resolution",
+                        "model_c_bucket": meta_key,
+                        "window_end_ts": 1100,
+                        "resolved_up": True,
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "resolution",
+                        "model_c_bucket": meta_key,
+                        "window_end_ts": 1200,
+                        "resolved_up": True,
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "resolution",
+                        "model_c_bucket": meta_key,
+                        "window_end_ts": 1150,
+                        "resolved_up": True,
+                    }
+                ),
             ]
         )
         + "\n",
@@ -413,9 +453,30 @@ def test_model_c_ledger_cache_rereads_only_after_mtime_change(tmp_path, monkeypa
     ledger.write_text(
         "\n".join(
             [
-                json.dumps({"type": "resolution", "model_c_bucket": meta_key, "window_end_ts": 1100, "resolved_up": True}),
-                json.dumps({"type": "resolution", "model_c_bucket": meta_key, "window_end_ts": 1200, "resolved_up": False}),
-                json.dumps({"type": "resolution", "model_c_bucket": meta_key, "window_end_ts": 1150, "resolved_up": False}),
+                json.dumps(
+                    {
+                        "type": "resolution",
+                        "model_c_bucket": meta_key,
+                        "window_end_ts": 1100,
+                        "resolved_up": True,
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "resolution",
+                        "model_c_bucket": meta_key,
+                        "window_end_ts": 1200,
+                        "resolved_up": False,
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "resolution",
+                        "model_c_bucket": meta_key,
+                        "window_end_ts": 1150,
+                        "resolved_up": False,
+                    }
+                ),
             ]
         )
         + "\n",

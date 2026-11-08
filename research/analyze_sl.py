@@ -3,6 +3,7 @@
 Stop-Loss Strategy Simulation
 Analyzes all trading log files and compares 3 SL strategies.
 """
+
 import pathlib
 import sys
 
@@ -39,14 +40,15 @@ PLACED_RE = re.compile(
 
 # ── Parsing ────────────────────────────────────────────────────────────────────
 
+
 def parse_logs():
     log_files = sorted(glob.glob(os.path.join(LOG_DIR, "*.log")))
     if not log_files:
         print(f"ERROR: No .log files found in {LOG_DIR}")
         return [], {}
 
-    exits = {}          # order_id -> trade dict (first occurrence wins)
-    placements = {}     # order_id -> placement dict
+    exits = {}  # order_id -> trade dict (first occurrence wins)
+    placements = {}  # order_id -> placement dict
 
     total_exit_lines = 0
     total_placed_lines = 0
@@ -61,7 +63,7 @@ def parse_logs():
                     if m:
                         total_exit_lines += 1
                         ts_str, order_id, reason, entry_s, exit_s, pnl_s = m.groups()
-                        if order_id not in exits:   # deduplicate: keep first
+                        if order_id not in exits:  # deduplicate: keep first
                             try:
                                 exits[order_id] = {
                                     "timestamp": ts_str,
@@ -105,10 +107,10 @@ def parse_logs():
 
 # ── Strategy simulation ────────────────────────────────────────────────────────
 
-SL_THRESHOLD = -4.0          # configured SL level (%)
-SL_PRICE_MULT = 0.96         # entry * 0.96
-INSTANT_MULT = 0.9456        # entry * 0.96 * 0.985  (tiered instant threshold)
-DEEP_BREACH_PCT = -5.56      # if actual pnl < this => price dropped >1.5% past SL
+SL_THRESHOLD = -4.0  # configured SL level (%)
+SL_PRICE_MULT = 0.96  # entry * 0.96
+INSTANT_MULT = 0.9456  # entry * 0.96 * 0.985  (tiered instant threshold)
+DEEP_BREACH_PCT = -5.56  # if actual pnl < this => price dropped >1.5% past SL
 
 
 def simulate_strategies(trades):
@@ -126,14 +128,14 @@ def simulate_strategies(trades):
         if reason == "STOP_LOSS":
             # Strategy B: instant SL at -4%
             sim_exit_b = entry * SL_PRICE_MULT
-            sim_pnl_b = (sim_exit_b / entry - 1) * 100   # exactly -4%
+            sim_pnl_b = (sim_exit_b / entry - 1) * 100  # exactly -4%
             strat_b.append({**t, "sim_pnl": sim_pnl_b, "sim_exit": sim_exit_b})
 
             # Strategy C: tiered
             if actual_pnl < DEEP_BREACH_PCT:
                 # Deep breach: simulate as caught at instant threshold
                 sim_exit_c = entry * INSTANT_MULT
-                sim_pnl_c = (INSTANT_MULT - 1) * 100      # -5.44%
+                sim_pnl_c = (INSTANT_MULT - 1) * 100  # -5.44%
             else:
                 # Borderline (between -4% and -5.56%): use actual
                 sim_pnl_c = actual_pnl
@@ -148,6 +150,7 @@ def simulate_strategies(trades):
 
 
 # ── Statistics ─────────────────────────────────────────────────────────────────
+
 
 def bucket_label(pnl_pct):
     """Return magnitude bucket string for SL exits."""
@@ -211,11 +214,12 @@ def compute_stats(trades):
 
 BUCKET_ORDER = ["0–5%", "5–10%", "10–15%", "15–20%", "20%+"]
 
+
 def print_report(stats_a, stats_b, stats_c):
     strategies = [
         ("A  Baseline (actual)", stats_a),
         ("B  Instant SL (-4%)", stats_b),
-        ("C  Tiered SL",         stats_c),
+        ("C  Tiered SL", stats_c),
     ]
 
     sep = "=" * 80
@@ -235,30 +239,30 @@ def print_report(stats_a, stats_b, stats_c):
         vals = "".join(f"  {fn(s):<{col_w}}" for _, s in strategies)
         print(f"  {label:<28}{vals}")
 
-    row("Total unique trades",    lambda s: str(s["n"]))
-    row("Win rate",               lambda s: f"{s['win_rate']:.1f}%")
-    row("Avg PnL per trade",      lambda s: f"{s['avg_pnl']:+.2f}%")
-    row("Total P&L ($5/trade)",   lambda s: f"${s['total_dollar_pnl']:+.2f}")
-    row("Best single trade",      lambda s: f"{s['best']:+.2f}%")
-    row("Worst single trade",     lambda s: f"{s['worst']:+.2f}%")
+    row("Total unique trades", lambda s: str(s["n"]))
+    row("Win rate", lambda s: f"{s['win_rate']:.1f}%")
+    row("Avg PnL per trade", lambda s: f"{s['avg_pnl']:+.2f}%")
+    row("Total P&L ($5/trade)", lambda s: f"${s['total_dollar_pnl']:+.2f}")
+    row("Best single trade", lambda s: f"{s['best']:+.2f}%")
+    row("Worst single trade", lambda s: f"{s['worst']:+.2f}%")
     print(thin)
-    row("STOP_LOSS count",        lambda s: str(s["sl_count"]))
-    row("Avg SL PnL",             lambda s: f"{s['avg_sl_pnl']:+.2f}%")
-    row("TAKE_PROFIT count",      lambda s: str(s["tp_count"]))
-    row("Avg TP PnL",             lambda s: f"{s['avg_tp_pnl']:+.2f}%")
-    row("TIME_EXIT / other",      lambda s: str(s["other_count"]))
+    row("STOP_LOSS count", lambda s: str(s["sl_count"]))
+    row("Avg SL PnL", lambda s: f"{s['avg_sl_pnl']:+.2f}%")
+    row("TAKE_PROFIT count", lambda s: str(s["tp_count"]))
+    row("Avg TP PnL", lambda s: f"{s['avg_tp_pnl']:+.2f}%")
+    row("TIME_EXIT / other", lambda s: str(s["other_count"]))
     print(thin)
 
     # Reason breakdown
     all_reasons = sorted({r for _, s in strategies for r in s["reason_counts"]})
     for reason in all_reasons:
-        row(f"  {reason}",        lambda s, r=reason: str(s["reason_counts"].get(r, 0)))
+        row(f"  {reason}", lambda s, r=reason: str(s["reason_counts"].get(r, 0)))
     print(thin)
 
     # SL magnitude buckets
     print(f"  {'SL Exit Magnitude Buckets':<28}")
     for b in BUCKET_ORDER:
-        row(f"    {b}",           lambda s, bk=b: str(s["buckets"].get(bk, 0)))
+        row(f"    {b}", lambda s, bk=b: str(s["buckets"].get(bk, 0)))
 
     print(sep)
 
@@ -267,10 +271,10 @@ def print_report(stats_a, stats_b, stats_c):
     print("  DELTA vs BASELINE  (Strategy X minus Strategy A)")
     print(thin)
     for name, s in strategies[1:]:
-        d_avg  = s["avg_pnl"] - stats_a["avg_pnl"]
-        d_dol  = s["total_dollar_pnl"] - stats_a["total_dollar_pnl"]
-        d_sl   = s["avg_sl_pnl"] - stats_a["avg_sl_pnl"]
-        d_wr   = s["win_rate"] - stats_a["win_rate"]
+        d_avg = s["avg_pnl"] - stats_a["avg_pnl"]
+        d_dol = s["total_dollar_pnl"] - stats_a["total_dollar_pnl"]
+        d_sl = s["avg_sl_pnl"] - stats_a["avg_sl_pnl"]
+        d_wr = s["win_rate"] - stats_a["win_rate"]
         print(f"  Strategy {name.strip()}")
         print(f"    Avg PnL change     : {d_avg:+.2f}%  ({d_wr:+.1f}pp win rate)")
         print(f"    Avg SL PnL change  : {d_sl:+.2f}%")
@@ -281,6 +285,7 @@ def print_report(stats_a, stats_b, stats_c):
 
 
 # ── Deep-dive: individual SL trades ───────────────────────────────────────────
+
 
 def print_sl_details(trades_a, trades_b, trades_c):
     # Build lookup by order_id
@@ -312,8 +317,10 @@ def print_sl_details(trades_a, trades_b, trades_c):
         else:
             cat = "BORDER"
 
-        print(f"  {oid:<44} {t['entry']:>6.3f} {t['exit']:>6.3f} "
-              f"{act_pnl:>+7.2f}% {b_pnl:>+7.2f}% {c_pnl:>+7.2f}%  {cat}")
+        print(
+            f"  {oid:<44} {t['entry']:>6.3f} {t['exit']:>6.3f} "
+            f"{act_pnl:>+7.2f}% {b_pnl:>+7.2f}% {c_pnl:>+7.2f}%  {cat}"
+        )
 
     print()
     print(f"  DEEP   = actual PnL < {DEEP_BREACH_PCT}%  → price fell >1.5% past SL before exit")
@@ -322,6 +329,7 @@ def print_sl_details(trades_a, trades_b, trades_c):
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
+
 
 def main():
     print()

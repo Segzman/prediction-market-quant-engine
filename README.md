@@ -93,7 +93,7 @@ The idea was simple: instead of running the whole model stack, gather a handful 
 ## Architecture
 
 ```
-codex_plan/
+prediction-market-quant-engine/
 ├── bot.py               # entry point, asyncio runtime loop, trading orchestration
 ├── cli.py               # argument parsing and model-name validation
 ├── config.py            # env loading, constants, validation
@@ -158,9 +158,13 @@ python research/backtest_report.py --build-sample <dir with trades_both.jsonl an
 python research/backtest_report.py   # writes docs/backtest_report.md
 ```
 
+## Paper Deployment
+
+`deploy/vm/` runs the engine 24/7 in paper mode on a Linux VM: an idempotent `bootstrap.sh`, systemd units for the bot and a read-only dashboard (`/healthz`), a heal timer that reinstalls after a reprovision, and a log-sync timer that backs up the paper ledger and JEV logs to a private repository and restores them on bootstrap. It refuses to start unless `DRY_RUN=True`. See [deploy/vm/README.md](deploy/vm/README.md).
+
 ## Testing
 
-- 24 test files and 292 test functions (as reported by `pytest -q`), covering the probability models, edge, signal, sizing, guard, window and position state, ledger, orderer, feeds, Polymarket client, live reconciliation, webapp manager, and calibration script.
+- 28 test files and 321 tests (as reported by `pytest -q`), covering the probability models, edge, signal, sizing, guard, window and position state, ledger, orderer, feeds, Polymarket client, live reconciliation, webapp manager, and calibration script.
 - Run the suite with `python -m pytest -q`. It uses `pytest-asyncio` and `unittest.mock` for external services, so it needs no network access or credentials.
 - CI (`.github/workflows/ci.yml`) runs the suite on Python 3.13 with the pinned `requirements.lock`.
 
@@ -217,7 +221,8 @@ python -m pytest -q                                        # test suite
 ## Known Limitations
 
 - **Sample size.** Paper/shadow ledgers hold roughly 105 resolved trades, too few to establish an edge.
-- **No out-of-sample split yet.** Calibration buckets for Model C are scored on the same resolutions they are fit on; a chronological train/test split is the next step.
+- **Out-of-sample evaluation is still thin.** `docs/backtest_report.md` uses a chronological split, but the test side is about 20 independent windows and outcomes are a proxy (last observed BTC price vs window open) because the logs carry no settlement result. Models B, C and P beat the market-implied baseline on Brier there (about 0.15 vs 0.17); realized trade PnL is indistinguishable from zero. No edge is claimed.
+- **Model C fell back to Model B in the logged runs.** B and C are identical on all 8,125 logged rows, so the calibration path never engaged in those sessions; the paper deployment logs settlement outcomes to fix that.
 - **Look-ahead in Model C ledger fallback: fixed.** The fallback calibration now passes the decision timestamp through the call chain (`strategy/signal.py` derives it as `window.end_ts - seconds_remaining`) and counts only resolutions whose `window_end_ts` is strictly before that time. Ledgers are parsed once and cached keyed on file mtime, so every Model C tick no longer re-reads the JSONL file.
 - **Synthetic market in `scripts/simulate_models.py`.** The simulated order book under-reacts to momentum by construction, so it tests plumbing, not edge.
 - **Execution model.** No queue-position, partial-fill, or latency/slippage sensitivity model.

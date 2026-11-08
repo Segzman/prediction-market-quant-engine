@@ -5,6 +5,7 @@ Monte Carlo simulation of 1-day bot performance based on empirical trade data.
 Calibrated from 410 real trades (20260410-20260411) in CONVICTION_ONLY track.
 Run: python3 simulate_day.py
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -21,11 +22,12 @@ import statistics
 # 1. LOAD EMPIRICAL OUTCOME DISTRIBUTIONS
 # ─────────────────────────────────────────────
 
+
 def load_real_outcomes() -> dict[str, list[float]]:
     """Load actual PnL samples from conviction trade logs, grouped by entry price band."""
     all_files = sorted(
-        glob.glob(".web_runtime/20260410_*_trades_conviction.jsonl") +
-        glob.glob(".web_runtime/20260411_*_trades_conviction.jsonl")
+        glob.glob(".web_runtime/20260410_*_trades_conviction.jsonl")
+        + glob.glob(".web_runtime/20260411_*_trades_conviction.jsonl")
     )
     trades: dict = {}
     resolutions: dict = {}
@@ -72,10 +74,10 @@ REGIMES = {
     "choppy": {
         # Volatile but directionless BTC — lots of signals all in uncertain zone
         "description": "Choppy / ranging BTC (like Apr 10)",
-        "active_windows_per_day": 50,      # ~17% of 288 daily windows produce signals
-        "trades_per_window": (2, 6),        # range drawn uniform
+        "active_windows_per_day": 50,  # ~17% of 288 daily windows produce signals
+        "trades_per_window": (2, 6),  # range drawn uniform
         "band_weights": {"low": 0.85, "mid": 0.10, "high": 0.05},
-        "regime_probability": 0.50,         # 50% of days
+        "regime_probability": 0.50,  # 50% of days
     },
     "trending": {
         # BTC making a clear move, tokens pricing strongly one-sided late in windows
@@ -132,8 +134,7 @@ def simulate_one_day(
 
             # Pick entry band weighted by regime
             band = rng.choices(
-                ["low", "mid", "high"],
-                weights=[weights["low"], weights["mid"], weights["high"]]
+                ["low", "mid", "high"], weights=[weights["low"], weights["mid"], weights["high"]]
             )[0]
 
             # Sample outcome from empirical distribution
@@ -167,6 +168,7 @@ def simulate_one_day(
 # 4. MONTE CARLO LOOP
 # ─────────────────────────────────────────────
 
+
 def run_simulation(n_days: int = 500, seed: int = 42) -> None:
     rng = random.Random(seed)
     bands = load_real_outcomes()
@@ -176,8 +178,8 @@ def run_simulation(n_days: int = 500, seed: int = 42) -> None:
     print("BAND CALIBRATION (from real logs)")
     print("=" * 65)
     for band_name, label, _lo, _hi in [
-        ("low",  "0.60-0.70 (low conviction)",  0.60, 0.70),
-        ("mid",  "0.70-0.79 (mid conviction)",  0.70, 0.79),
+        ("low", "0.60-0.70 (low conviction)", 0.60, 0.70),
+        ("mid", "0.70-0.79 (mid conviction)", 0.70, 0.79),
         ("high", "0.79-0.92 (high conviction)", 0.79, 0.92),
     ]:
         samples = bands[band_name]
@@ -212,15 +214,15 @@ def run_simulation(n_days: int = 500, seed: int = 42) -> None:
     print(f"  Std dev                          ${statistics.stdev(pnls):>8.2f}")
     print(f"  Best day                         ${max(pnls):>+8.2f}")
     print(f"  Worst day                        ${min(pnls):>+8.2f}")
-    print(f"  Profitable days                   {sum(1 for p in pnls if p > 0)/n_days*100:>7.0f}%")
-    print(f"  Blowup days (<-$5, lose half)     {sum(1 for p in pnls if p < -5)/n_days*100:>7.0f}%")
+    print(f"  Profitable days                   {sum(1 for p in pnls if p > 0) / n_days * 100:>7.0f}%")
+    print(f"  Blowup days (<-$5, lose half)     {sum(1 for p in pnls if p < -5) / n_days * 100:>7.0f}%")
 
     # Percentiles
-    print(f"\n  P5  (5th percentile)             ${pnls[int(n_days*0.05)]:>+8.2f}")
-    print(f"  P25                              ${pnls[int(n_days*0.25)]:>+8.2f}")
-    print(f"  P50                              ${pnls[int(n_days*0.50)]:>+8.2f}")
-    print(f"  P75                              ${pnls[int(n_days*0.75)]:>+8.2f}")
-    print(f"  P95 (95th percentile)            ${pnls[int(n_days*0.95)]:>+8.2f}")
+    print(f"\n  P5  (5th percentile)             ${pnls[int(n_days * 0.05)]:>+8.2f}")
+    print(f"  P25                              ${pnls[int(n_days * 0.25)]:>+8.2f}")
+    print(f"  P50                              ${pnls[int(n_days * 0.50)]:>+8.2f}")
+    print(f"  P75                              ${pnls[int(n_days * 0.75)]:>+8.2f}")
+    print(f"  P95 (95th percentile)            ${pnls[int(n_days * 0.95)]:>+8.2f}")
 
     # Per-regime breakdown
     print()
@@ -236,9 +238,10 @@ def run_simulation(n_days: int = 500, seed: int = 42) -> None:
         avg_sl = statistics.mean(d["sl_pct"] for d in days) * 100
         print(f"\n  {rdef['description']}")
         print(f"    Days simulated: {len(days)}")
-        print(f"    Mean PnL:       ${statistics.mean(rpnls):+.2f}  "
-              f"(median ${statistics.median(rpnls):+.2f})")
-        print(f"    Profitable:     {sum(1 for p in rpnls if p > 0)/len(rpnls)*100:.0f}%")
+        print(
+            f"    Mean PnL:       ${statistics.mean(rpnls):+.2f}  (median ${statistics.median(rpnls):+.2f})"
+        )
+        print(f"    Profitable:     {sum(1 for p in rpnls if p > 0) / len(rpnls) * 100:.0f}%")
         print(f"    Avg trades/day: {avg_trades:.0f}  |  Avg SL rate: {avg_sl:.0f}%")
 
     # Suggested improvements
@@ -247,8 +250,8 @@ def run_simulation(n_days: int = 500, seed: int = 42) -> None:
     print("MODEL INSIGHTS & RECOMMENDATIONS")
     print("=" * 65)
 
-    ev_low  = statistics.mean(bands["low"]) * 100
-    ev_mid  = statistics.mean(bands["mid"]) * 100
+    ev_low = statistics.mean(bands["low"]) * 100
+    ev_mid = statistics.mean(bands["mid"]) * 100
     ev_high = statistics.mean(bands["high"]) * 100
 
     print(f"""
@@ -307,8 +310,8 @@ def run_simulation(n_days: int = 500, seed: int = 42) -> None:
     avg_trades = statistics.mean(d["trades"] for d in filtered_days)
     print(f"\n  Mean daily PnL:  ${statistics.mean(fpnls):>+.2f}")
     print(f"  Median:          ${statistics.median(fpnls):>+.2f}")
-    print(f"  P5 / P95:        ${fpnls[int(n_days*0.05)]:>+.2f} / ${fpnls[int(n_days*0.95)]:>+.2f}")
-    print(f"  Profitable days: {sum(1 for p in fpnls if p > 0)/n_days*100:.0f}%")
+    print(f"  P5 / P95:        ${fpnls[int(n_days * 0.05)]:>+.2f} / ${fpnls[int(n_days * 0.95)]:>+.2f}")
+    print(f"  Profitable days: {sum(1 for p in fpnls if p > 0) / n_days * 100:.0f}%")
     print(f"  Avg trades/day:  {avg_trades:.1f}")
     print(f"\n  Current (all bands):   ${statistics.mean(pnls):>+.2f}/day")
     print(f"  Filtered (0.79+ only): ${statistics.mean(fpnls):>+.2f}/day")

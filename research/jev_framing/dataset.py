@@ -21,14 +21,12 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 OUT = HERE / "data" / "states.jsonl"
-SOURCE_DIR = Path(
-    os.environ.get("JEV_SOURCE_DIR", "~/Downloads/codex_plan")
-).expanduser()
+SOURCE_DIR = Path(os.environ.get("JEV_SOURCE_DIR", "~/Downloads/codex_plan")).expanduser()
 SOURCE_FILES = ("trades_both.jsonl", "trades_conviction.jsonl")
 
-LOOKBACK_S = 30.0          # momentum / acceleration lookback
-CLOSE_MAX_SECONDS = 15     # last candidate must be this close to window end
-GRID_SECONDS = 30          # keep one state per grid bucket per window
+LOOKBACK_S = 30.0  # momentum / acceleration lookback
+CLOSE_MAX_SECONDS = 15  # last candidate must be this close to window end
+GRID_SECONDS = 30  # keep one state per grid bucket per window
 DEV_FRACTION = 0.70
 
 
@@ -156,19 +154,21 @@ def build_states(candidates: list[dict], stats: dict) -> list[dict]:
                 continue
             grid_seen.add(bucket)
             agree = btc_up if side == "UP" else (not btc_up)
-            states.append({
-                "window_end_ts": wend,
-                "ts": round(float(rec["ts"]), 3),
-                "seconds_remaining": int(secs),
-                "strongest_side": side,
-                "strongest_price": float(rec["up_price"] if side == "UP" else rec["down_price"]),
-                "up_price": float(rec["up_price"]),
-                "down_price": float(rec["down_price"]),
-                "det_agreement": bool(rec["btc_confirmed"]),
-                "btc_up": btc_up,
-                "agree": agree,
-                **feats,
-            })
+            states.append(
+                {
+                    "window_end_ts": wend,
+                    "ts": round(float(rec["ts"]), 3),
+                    "seconds_remaining": int(secs),
+                    "strongest_side": side,
+                    "strongest_price": float(rec["up_price"] if side == "UP" else rec["down_price"]),
+                    "up_price": float(rec["up_price"]),
+                    "down_price": float(rec["down_price"]),
+                    "det_agreement": bool(rec["btc_confirmed"]),
+                    "btc_up": btc_up,
+                    "agree": agree,
+                    **feats,
+                }
+            )
     return states
 
 
@@ -191,11 +191,19 @@ def main() -> None:
             fh.write(json.dumps(s, sort_keys=True) + "\n")
 
     n_dev = sum(1 for s in states if s["split"] == "dev")
-    print(json.dumps({"stats": stats, "windows": len(windows),
-                      "states": len(states), "dev": n_dev,
-                      "holdout": len(states) - n_dev,
-                      "dev_windows": sum(1 for w in windows if w < cut)},
-                     indent=2))
+    print(
+        json.dumps(
+            {
+                "stats": stats,
+                "windows": len(windows),
+                "states": len(states),
+                "dev": n_dev,
+                "holdout": len(states) - n_dev,
+                "dev_windows": sum(1 for w in windows if w < cut),
+            },
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

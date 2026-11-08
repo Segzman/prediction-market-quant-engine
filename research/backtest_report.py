@@ -56,17 +56,18 @@ SOURCE_FILES = (
 
 # ---------------------------------------------------------------- metrics
 
+
 def mean(xs):
     return sum(xs) / len(xs) if xs else None
 
 
 def brier(probs, outcomes):
-    return mean([(p - y) ** 2 for p, y in zip(probs, outcomes)])
+    return mean([(p - y) ** 2 for p, y in zip(probs, outcomes, strict=False)])
 
 
 def log_loss(probs, outcomes, eps=1e-6):
     terms = []
-    for p, y in zip(probs, outcomes):
+    for p, y in zip(probs, outcomes, strict=False):
         p = min(1 - eps, max(eps, p))
         terms.append(-(y * math.log(p) + (1 - y) * math.log(1 - p)))
     return mean(terms)
@@ -75,7 +76,7 @@ def log_loss(probs, outcomes, eps=1e-6):
 def reliability(probs, outcomes, bins=10):
     """Return (rows, ece). Each row: bin range, n, mean predicted, observed freq."""
     buckets = [[] for _ in range(bins)]
-    for p, y in zip(probs, outcomes):
+    for p, y in zip(probs, outcomes, strict=False):
         buckets[min(bins - 1, int(p * bins))].append((p, y))
     n = len(probs)
     rows = []
@@ -96,7 +97,7 @@ def reliability(probs, outcomes, bins=10):
 def directional_hits(probs, outcomes):
     """Hits and count where the call is UP (p > 0.5) or DOWN (p < 0.5)."""
     hits = n = 0
-    for p, y in zip(probs, outcomes):
+    for p, y in zip(probs, outcomes, strict=False):
         if p == 0.5:
             continue
         n += 1
@@ -128,7 +129,7 @@ def max_drawdown(pnls):
 def cluster_bootstrap_mean_ci(values, clusters, iters=BOOTSTRAP_ITERS, seed=BOOTSTRAP_SEED):
     """95% percentile CI of the mean, resampling whole clusters (windows)."""
     groups = defaultdict(list)
-    for v, c in zip(values, clusters):
+    for v, c in zip(values, clusters, strict=False):
         groups[c].append(v)
     keys = list(groups)
     if not keys:
@@ -165,6 +166,7 @@ def percentile(xs, q):
 
 # ------------------------------------------------- JEV feature reconstruction
 
+
 def tick_features(price_hist):
     """Mirror of state.session.BotState.tick_trend_features on (ts, price) pairs."""
     if len(price_hist) < 3:
@@ -175,7 +177,7 @@ def tick_features(price_hist):
         samples = price_hist[-3:]
     first, last = samples[0][1], samples[-1][1]
     tick_move = (last - first) / first if first > 0 else 0.0
-    moves = [b[1] - a[1] for a, b in zip(samples, samples[1:]) if a[1] > 0 and b[1] > 0]
+    moves = [b[1] - a[1] for a, b in zip(samples, samples[1:], strict=False) if a[1] > 0 and b[1] > 0]
     if moves:
         pos = sum(1 for m in moves if m > 0)
         neg = sum(1 for m in moves if m < 0)
@@ -211,6 +213,7 @@ def poly_momentum(poly_hist):
 
 # ------------------------------------------------------------ sample build
 
+
 def _load_jsonl(path):
     with open(path, encoding="utf-8") as f:
         for line in f:
@@ -222,9 +225,14 @@ def _load_jsonl(path):
 def build_sample(src_dir, out_path=SAMPLE_PATH, stride=SAMPLE_STRIDE):
     """Write the anonymized evaluation sample. Drops order, wallet and market ids."""
     src_dir = Path(src_dir)
-    meta = {"stride": stride, "label_max_gap_s": LABEL_MAX_GAP_SECONDS,
-            "windows_total": 0, "windows_excluded_gap": 0,
-            "candidates_missing_probs": 0, "rows": 0}
+    meta = {
+        "stride": stride,
+        "label_max_gap_s": LABEL_MAX_GAP_SECONDS,
+        "windows_total": 0,
+        "windows_excluded_gap": 0,
+        "candidates_missing_probs": 0,
+        "rows": 0,
+    }
     out = []
     for src_name, fname in SOURCE_FILES:
         groups = defaultdict(list)
@@ -247,8 +255,12 @@ def build_sample(src_dir, out_path=SAMPLE_PATH, stride=SAMPLE_STRIDE):
                     poly_hist.append((r["ts"], r["up_price"], r["down_price"]))
                 keep = i % stride == 0 or bool(r["would_trade"])
                 probs = r.get("probabilities") or {}
-                if not all(m in probs for m in MODELS) or r.get("up_price") is None \
-                        or r.get("down_price") is None or r.get("btc_price") is None:
+                if (
+                    not all(m in probs for m in MODELS)
+                    or r.get("up_price") is None
+                    or r.get("down_price") is None
+                    or r.get("btc_price") is None
+                ):
                     meta["candidates_missing_probs"] += 1
                     continue
                 if not keep:
@@ -256,13 +268,23 @@ def build_sample(src_dir, out_path=SAMPLE_PATH, stride=SAMPLE_STRIDE):
                 tm, dc, ac = tick_features(price_hist)
                 um, dm = poly_momentum(poly_hist)
                 row = {
-                    "src": src_name, "w": w, "ts": round(r["ts"], 1),
-                    "s": int(r["seconds_remaining"]), "side": r["strongest_side"],
-                    "up": round(r["up_price"], 4), "dn": round(r["down_price"], 4),
-                    "p": {m: round(probs[m], 4) for m in MODELS}, "y": y,
+                    "src": src_name,
+                    "w": w,
+                    "ts": round(r["ts"], 1),
+                    "s": int(r["seconds_remaining"]),
+                    "side": r["strongest_side"],
+                    "up": round(r["up_price"], 4),
+                    "dn": round(r["down_price"], 4),
+                    "p": {m: round(probs[m], 4) for m in MODELS},
+                    "y": y,
                     "bet": bool(r["would_trade"]),
-                    "jev": {"tm": round(tm, 6), "dc": round(dc, 4), "ac": round(ac, 6),
-                            "um": round(um, 6), "dm": round(dm, 6)},
+                    "jev": {
+                        "tm": round(tm, 6),
+                        "dc": round(dc, 4),
+                        "ac": round(ac, 6),
+                        "um": round(um, 6),
+                        "dm": round(dm, 6),
+                    },
                 }
                 if row["bet"]:
                     row["px"] = round(r["market_price"], 4)
@@ -281,6 +303,7 @@ def build_sample(src_dir, out_path=SAMPLE_PATH, stride=SAMPLE_STRIDE):
 
 
 # ------------------------------------------------------- load / split / JEV
+
 
 def load_sample(path=SAMPLE_PATH):
     meta, rows = {}, []
@@ -340,6 +363,7 @@ def mkt_up(row):
 
 # ----------------------------------------------------------------- report
 
+
 def _f(x, nd=4):
     return "n/a" if x is None else f"{x:.{nd}f}"
 
@@ -358,10 +382,17 @@ def prob_row(name, probs, ys):
     hits, n_dir = directional_hits(probs, ys)
     lo, hi = wilson_interval(hits, n_dir)
     _, ece = reliability(probs, ys)
-    return {"name": name, "n": len(ys), "brier": brier(probs, ys),
-            "logloss": log_loss(probs, ys), "ece": ece,
-            "hits": hits, "n_dir": n_dir, "hit_rate": hits / n_dir if n_dir else None,
-            "ci": (lo, hi)}
+    return {
+        "name": name,
+        "n": len(ys),
+        "brier": brier(probs, ys),
+        "logloss": log_loss(probs, ys),
+        "ece": ece,
+        "hits": hits,
+        "n_dir": n_dir,
+        "hit_rate": hits / n_dir if n_dir else None,
+        "ci": (lo, hi),
+    }
 
 
 def prob_table(rows, jev_map=None):
@@ -399,17 +430,25 @@ def trade_stats(bets, p_sides=None):
     hits = sum(outcomes)
     lo, hi = wilson_interval(hits, len(outcomes))
     ci_lo, ci_hi = cluster_bootstrap_mean_ci(pnls, clusters)
-    stats = {"n": len(bets), "hits": hits, "hit_rate": hits / len(bets) if bets else None,
-             "hit_ci": (lo, hi), "mean_pnl": mean(pnls), "pnl_ci": (ci_lo, ci_hi),
-             "total_pnl": sum(pnls), "max_dd": max_drawdown(pnls), "ev": {}}
+    stats = {
+        "n": len(bets),
+        "hits": hits,
+        "hit_rate": hits / len(bets) if bets else None,
+        "hit_ci": (lo, hi),
+        "mean_pnl": mean(pnls),
+        "pnl_ci": (ci_lo, ci_hi),
+        "total_pnl": sum(pnls),
+        "max_dd": max_drawdown(pnls),
+        "ev": {},
+    }
     for name, ps in (p_sides or {}).items():
-        evs = [expected_trade_pnl(r["stake"], r["px"], p, r["fee"]) for r, p in zip(bets, ps)]
+        evs = [expected_trade_pnl(r["stake"], r["px"], p, r["fee"]) for r, p in zip(bets, ps, strict=False)]
         stats["ev"][name] = mean(evs)
     return stats
 
 
 def p_side_list(bets, probs_up):
-    return [p if r["side"] == "UP" else 1 - p for r, p in zip(bets, probs_up)]
+    return [p if r["side"] == "UP" else 1 - p for r, p in zip(bets, probs_up, strict=False)]
 
 
 def build_report(meta, rows):
@@ -441,27 +480,42 @@ def build_report(meta, rows):
     jev_bets = [r for r in bets if id(r) in jev_map]
     jev_trades = None
     if jev_bets:
-        jev_trades = trade_stats(
-            jev_bets, {"JEV": p_side_list(jev_bets, [jev_map[id(r)] for r in jev_bets])})
+        jev_trades = trade_stats(jev_bets, {"JEV": p_side_list(jev_bets, [jev_map[id(r)] for r in jev_bets])})
 
     return {
-        "meta": meta, "rows": len(rows), "windows_train": len(train_w),
-        "windows_test": len(test_w), "states_train": len(train), "states_test": len(test),
-        "test_directional": len(test_dir), "jev_covered": len(covered),
-        "jev_pending": len(test_dir) - len(covered), "jev_latency": jev_latency,
-        "full_table": full_table, "sub_table": sub_table, "full_ys": full_ys,
-        "bets": len(bets), "trades": trades, "jev_trades": jev_trades,
-        "covered": covered, "jev_map": jev_map, "test": test
+        "meta": meta,
+        "rows": len(rows),
+        "windows_train": len(train_w),
+        "windows_test": len(test_w),
+        "states_train": len(train),
+        "states_test": len(test),
+        "test_directional": len(test_dir),
+        "jev_covered": len(covered),
+        "jev_pending": len(test_dir) - len(covered),
+        "jev_latency": jev_latency,
+        "full_table": full_table,
+        "sub_table": sub_table,
+        "full_ys": full_ys,
+        "bets": len(bets),
+        "trades": trades,
+        "jev_trades": jev_trades,
+        "covered": covered,
+        "jev_map": jev_map,
+        "test": test,
     }
 
 
 def _prob_md(table):
-    lines = ["| Model | n | Brier | Log loss | ECE (10 bins) | Directional hit rate | 95% Wilson CI |",
-             "|---|---:|---:|---:|---:|---:|---:|"]
+    lines = [
+        "| Model | n | Brier | Log loss | ECE (10 bins) | Directional hit rate | 95% Wilson CI |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ]
     for t in table:
-        lines.append(f"| {t['name']} | {t['n']} | {_f(t['brier'])} | {_f(t['logloss'])} | "
-                     f"{_f(t['ece'])} | {_f(t['hit_rate'])} ({t['hits']}/{t['n_dir']}) | "
-                     f"{_ci(*t['ci'])} |")
+        lines.append(
+            f"| {t['name']} | {t['n']} | {_f(t['brier'])} | {_f(t['logloss'])} | "
+            f"{_f(t['ece'])} | {_f(t['hit_rate'])} ({t['hits']}/{t['n_dir']}) | "
+            f"{_ci(*t['ci'])} |"
+        )
     return "\n".join(lines)
 
 
@@ -484,30 +538,44 @@ def render(data):
     w("")
     w("## Sample and split")
     w("")
-    w(f"- Source logs: `trades_both.jsonl`, `trades_conviction.jsonl` (two runs over overlapping 5-minute windows, kept as separate sources).")
-    w(f"- Windows in sources: {m.get('windows_total')}; excluded (last observation more than "
-      f"{m.get('label_max_gap_s')} s before close): {m.get('windows_excluded_gap')}.")
-    w(f"- Sample rows: {data['rows']} (1 in {m.get('stride')} ticks plus every would-trade tick; "
-      f"chronological order; anonymized).")
-    w(f"- Chronological split by window end: train {data['windows_train']} windows / {data['states_train']} states; "
-      f"**test {data['windows_test']} windows / {data['states_test']} states**.")
+    w(
+        "- Source logs: `trades_both.jsonl`, `trades_conviction.jsonl` (two runs over overlapping 5-minute windows, kept as separate sources)."
+    )
+    w(
+        f"- Windows in sources: {m.get('windows_total')}; excluded (last observation more than "
+        f"{m.get('label_max_gap_s')} s before close): {m.get('windows_excluded_gap')}."
+    )
+    w(
+        f"- Sample rows: {data['rows']} (1 in {m.get('stride')} ticks plus every would-trade tick; "
+        f"chronological order; anonymized)."
+    )
+    w(
+        f"- Chronological split by window end: train {data['windows_train']} windows / {data['states_train']} states; "
+        f"**test {data['windows_test']} windows / {data['states_test']} states**."
+    )
     w(f"- Test states with a directional call (strongest side UP or DOWN): {data['test_directional']}.")
     w(f"- Test-set decisions (first would-trade tick per source and window): {data['bets']}.")
     w("")
-    w("**Sample size is small.** The test set covers a few dozen windows. Ticks inside one window are "
-      "strongly correlated, so the effective sample is closer to the number of windows than the number of states. "
-      "Confidence intervals below are therefore wide, and no result here establishes an edge.")
+    w(
+        "**Sample size is small.** The test set covers a few dozen windows. Ticks inside one window are "
+        "strongly correlated, so the effective sample is closer to the number of windows than the number of states. "
+        "Confidence intervals below are therefore wide, and no result here establishes an edge."
+    )
     w("")
-    w("**Outcome labels are a proxy.** The logs contain no settlement result for most windows "
-      "(resolution records are early exits with `resolved_up = null`). UP is defined as last observed BTC price "
-      "above the window open price, which is close to but not identical to the contract settlement rule. "
-      "PnL below is therefore a settlement-style estimate on that proxy, not realized PnL. Recorded early-exit PnL is not used.")
+    w(
+        "**Outcome labels are a proxy.** The logs contain no settlement result for most windows "
+        "(resolution records are early exits with `resolved_up = null`). UP is defined as last observed BTC price "
+        "above the window open price, which is close to but not identical to the contract settlement rule. "
+        "PnL below is therefore a settlement-style estimate on that proxy, not realized PnL. Recorded early-exit PnL is not used."
+    )
     w("")
     w("## Probability metrics, full test set")
     w("")
-    w("Probabilities are P(Up). The market row is the normalized mid, `up / (up + down)`. "
-      "Models B and C are identical on every logged row (see method notes), so their rows match. "
-      "Hit rate counts states with p != 0.5 where the call (p > 0.5 means UP) matches the proxy outcome.")
+    w(
+        "Probabilities are P(Up). The market row is the normalized mid, `up / (up + down)`. "
+        "Models B and C are identical on every logged row (see method notes), so their rows match. "
+        "Hit rate counts states with p != 0.5 where the call (p > 0.5 means UP) matches the proxy outcome."
+    )
     w("")
     w(_prob_md(data["full_table"]))
     w("")
@@ -520,58 +588,78 @@ def render(data):
         w("")
     w("## JEV comparison (same states, JEV-covered subset)")
     w("")
-    w(f"JEV was queried on {data['jev_covered']} of {data['test_directional']} test states with a directional call "
-      f"(`JEV_MAX_CALLS` cap; {data['jev_pending']} still pending). Every other column is re-scored on exactly these states.")
+    w(
+        f"JEV was queried on {data['jev_covered']} of {data['test_directional']} test states with a directional call "
+        f"(`JEV_MAX_CALLS` cap; {data['jev_pending']} still pending). Every other column is re-scored on exactly these states."
+    )
     w("")
     if data["sub_table"]:
         w(_prob_md(data["sub_table"]))
         w("")
         lat = data["jev_latency"]
-        w(f"JEV latency over covered states (ms): p50 {_f(percentile(lat, 0.5), 1)}, p95 {_f(percentile(lat, 0.95), 1)}, "
-          f"n {len(lat)}. Latency is the original call time stored in the cache.")
+        w(
+            f"JEV latency over covered states (ms): p50 {_f(percentile(lat, 0.5), 1)}, p95 {_f(percentile(lat, 0.95), 1)}, "
+            f"n {len(lat)}. Latency is the original call time stored in the cache."
+        )
     else:
         w("No JEV cache entries for the test set. Run `python research/jev_replay.py` to populate it.")
     w("")
-    w("**What JEV measures.** JEV answers whether observed BTC movement corroborates the strongest Polymarket side "
-      "(directional agreement), not the settlement probability. Its probability is mapped to P(Up) as `p` when the side is UP "
-      "and `1 - p` when DOWN. This mapping is an assumption, so JEV's Brier and log loss are not directly comparable to the models "
-      "as settlement forecasts. Sample size on the covered subset is small.")
+    w(
+        "**What JEV measures.** JEV answers whether observed BTC movement corroborates the strongest Polymarket side "
+        "(directional agreement), not the settlement probability. Its probability is mapped to P(Up) as `p` when the side is UP "
+        "and `1 - p` when DOWN. This mapping is an assumption, so JEV's Brier and log loss are not directly comparable to the models "
+        "as settlement forecasts. Sample size on the covered subset is small."
+    )
     w("")
     w("## Trade metrics (test set, bot would-trade decisions)")
     w("")
-    w("Same decisions for every column. Realized PnL uses binary settlement on the proxy outcome, "
-      "stake/price shares, minus the recorded `estimated_cost_usdc` fee. Model EV is the expected PnL of the same trade "
-      "under that model's probability for the traded side.")
+    w(
+        "Same decisions for every column. Realized PnL uses binary settlement on the proxy outcome, "
+        "stake/price shares, minus the recorded `estimated_cost_usdc` fee. Model EV is the expected PnL of the same trade "
+        "under that model's probability for the traded side."
+    )
     w("")
     w("| Metric | Value |")
     w("|---|---|")
     w(f"| Trades (n) | {t['n']} |")
     w(f"| Win rate (proxy) | {_f(t['hit_rate'])} ({t['hits']}/{t['n']}), 95% Wilson CI {_ci(*t['hit_ci'])} |")
-    w(f"| Mean realized net PnL per trade (USDC) | {_f(t['mean_pnl'], 3)}, 95% cluster-bootstrap CI {_ci(*t['pnl_ci'], nd=3)} |")
+    w(
+        f"| Mean realized net PnL per trade (USDC) | {_f(t['mean_pnl'], 3)}, 95% cluster-bootstrap CI {_ci(*t['pnl_ci'], nd=3)} |"
+    )
     w(f"| Total realized net PnL (USDC) | {_f(t['total_pnl'], 2)} |")
     w(f"| Max drawdown (USDC) | {_f(t['max_dd'], 2)} |")
     for name in PROB_NAMES:
         w(f"| Model EV per trade, {name} (USDC, net of fee) | {_f(t['ev'][name], 3)} |")
     if data["jev_trades"]:
         jt = data["jev_trades"]
-        w(f"| JEV-covered trades (n) | {jt['n']}, realized mean PnL {_f(jt['mean_pnl'], 3)}, "
-          f"JEV EV per trade {_f(jt['ev']['JEV'], 3)} |")
+        w(
+            f"| JEV-covered trades (n) | {jt['n']}, realized mean PnL {_f(jt['mean_pnl'], 3)}, "
+            f"JEV EV per trade {_f(jt['ev']['JEV'], 3)} |"
+        )
     else:
         w("| JEV-covered trades (n) | 0 |")
     w("")
-    w("Trade sample is small and clustered by window; the bootstrap resamples windows, not trades. "
-      "Market EV is roughly minus the fee and the book overround (up + down > 1), since the market probability has no edge against its own price.")
+    w(
+        "Trade sample is small and clustered by window; the bootstrap resamples windows, not trades. "
+        "Market EV is roughly minus the fee and the book overround (up + down > 1), since the market probability has no edge against its own price."
+    )
     w("")
     w("## Method notes")
     w("")
-    w("- Models A, B, C, P are the probabilities logged by the bot; nothing is refit here. "
-      "In the source logs B and C are identical on every row (8,125 of 8,125 in `trades_both.jsonl`), so the report cannot separate them; "
-      "the cause (for example Model C falling back to B, or a logging duplicate) is not visible in these files.")
-    w("- Logged probabilities are used as-is. The chronological split is used "
-      "only to choose which states are scored. Model C's calibration artifact may have been fit on overlapping history, "
-      "so train-period scores are not reported.")
-    w("- Tick and momentum features for JEV are reconstructed from logged candidate ticks (about 2.5 s cadence, "
-      "12 s tick lookback, 30 s Polymarket lookback) and are approximations of the production sub-second feed.")
+    w(
+        "- Models A, B, C, P are the probabilities logged by the bot; nothing is refit here. "
+        "In the source logs B and C are identical on every row (8,125 of 8,125 in `trades_both.jsonl`), so the report cannot separate them; "
+        "the cause (for example Model C falling back to B, or a logging duplicate) is not visible in these files."
+    )
+    w(
+        "- Logged probabilities are used as-is. The chronological split is used "
+        "only to choose which states are scored. Model C's calibration artifact may have been fit on overlapping history, "
+        "so train-period scores are not reported."
+    )
+    w(
+        "- Tick and momentum features for JEV are reconstructed from logged candidate ticks (about 2.5 s cadence, "
+        "12 s tick lookback, 30 s Polymarket lookback) and are approximations of the production sub-second feed."
+    )
     w("- Brier, log loss, ECE and reliability are computed on P(Up) with 10 equal-width bins.")
     w("- Wilson intervals use z = 1.96. Trade bootstrap uses 2000 resamples of windows with a fixed seed.")
     w("")
@@ -604,13 +692,14 @@ def write_png(data):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--build-sample", metavar="SRC_DIR",
-                    help="rebuild the sample from raw logs in SRC_DIR")
+    ap.add_argument("--build-sample", metavar="SRC_DIR", help="rebuild the sample from raw logs in SRC_DIR")
     args = ap.parse_args(argv)
     if args.build_sample:
         meta = build_sample(args.build_sample)
-        print(f"wrote {SAMPLE_PATH} rows={meta['rows']} windows={meta['windows_total']} "
-              f"excluded={meta['windows_excluded_gap']}")
+        print(
+            f"wrote {SAMPLE_PATH} rows={meta['rows']} windows={meta['windows_total']} "
+            f"excluded={meta['windows_excluded_gap']}"
+        )
         return 0
     meta, rows = load_sample()
     data = build_report(meta, rows)
