@@ -64,15 +64,17 @@ Tracks select which regimes run: `CONVICTION_ONLY` (default), `MISPRICING_ONLY`,
 
 ```
 codex_plan/
-├── bot.py               # CLI entry point and asyncio runtime loop
+├── bot.py               # entry point, asyncio runtime loop, trading orchestration
+├── cli.py               # argument parsing and model-name validation
 ├── config.py            # env loading, constants, validation
 ├── feeds/               # BTC spot feeds: Binance and Coinbase (binance.py), Kraken, Gemini, Bybit
-├── market/              # Polymarket market finder, public and authenticated client, orderer, Kalshi reference
+├── market/              # Polymarket market finder, public and authenticated client, orderer, Kalshi reference, window slug parsing (slug.py)
 ├── strategy/            # probability models, edge/EV, signal evaluation, entry gates, optional JEV check
 ├── risk/                # sizing (adaptive, Kelly), DailyGuard
-├── state/               # window, position, session state, model tracks
+├── state/               # window, position, session state (incl. apply_price), model tracks
 ├── persistence/         # append-only JSONL ledger
-├── ops/                 # process lock, alerts, live preflight and reconciliation, resolution
+├── ops/                 # process lock, alerts, live preflight and reconciliation, resolution, text formatting (formatting.py), runtime dashboard and status file (dashboard.py)
+├── sim/                 # local demo market client (DemoClient) and simulated BTC feed (SimulatedFeed)
 ├── webapp/              # local control plane (HTTP server + run manager)
 ├── scripts/             # replay, sweep, tuning, calibration, reporting
 ├── tests/               # pytest suite
