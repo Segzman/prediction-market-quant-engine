@@ -4,7 +4,12 @@
 
 ```
 bot/
-├── bot.py                     # entry point — asyncio orchestrator only, no logic here
+├── bot.py                     # entry point: asyncio orchestrator and trading loop
+├── cli.py                     # CLI argument parsing and model-name validation
+├── sim/
+│   ├── __init__.py
+│   ├── demo.py                # DemoClient: local demo market client
+│   └── feed.py                # SimulatedFeed: local simulated BTC price feed
 ├── config.py                  # all constants + env loading + validation
 ├── feeds/
 │   ├── __init__.py
@@ -14,7 +19,8 @@ bot/
 │   ├── __init__.py
 │   ├── client.py              # thin wrapper around py-clob-client
 │   ├── finder.py              # find active BTC 5-min windows from API
-│   └── orderer.py             # place / cancel / poll orders
+│   ├── orderer.py             # place / cancel / poll orders
+│   └── slug.py                # extract_market_slug: window slug from market URL
 ├── strategy/
 │   ├── __init__.py
 │   ├── signal.py              # top-level: evaluate() → Signal | None
@@ -28,6 +34,9 @@ bot/
 │   ├── __init__.py
 │   ├── window.py              # WindowState dataclass + phase logic
 │   └── session.py             # BotState + trade recording
+├── ops/
+│   ├── formatting.py          # text formatting helpers (price, prob, runtime, age, fit_text)
+│   └── dashboard.py           # RuntimeStats, ModelRuntime, terminal dashboard, runtime status file
 ├── persistence/
 │   ├── __init__.py
 │   └── ledger.py              # append-only JSONL trade log

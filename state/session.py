@@ -888,3 +888,15 @@ class BotState:
             "weakest_depth_to_fill_usdc": weakest_depth_to_fill_usdc,
             "market_implied_up_probability": market_implied_up_probability,
         }
+
+
+def apply_price(
+    states: list[BotState],
+    price: float,
+    *,
+    updated_ts: float | None = None,
+    source: str | None = None,
+) -> None:
+    ts = time.time() if updated_ts is None else updated_ts
+    for state in states:
+        state.update_price(price, updated_ts=ts, source=source)
