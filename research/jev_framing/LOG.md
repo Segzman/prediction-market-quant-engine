@@ -55,3 +55,32 @@ Metrics from `run.py run dev`; per-framing JSON in `results/dev/`. Budget counte
   candidates are fixed here, before any holdout run: r2a_negated (best dev Brier and log loss)
   and r2c_neutral_wording (second-best dev Brier, third-best log loss; it is the only other
   framing close to the top on both metrics). Baseline: r0_production.
+
+## Holdout (run once, fixed candidates from round 3 decision)
+
+Holdout = all 139 holdout states (last 30% of windows, 18 windows). Each framing run once.
+
+| framing | Brier | log loss | acc@0.5 | acc@0.60 | det agree | p50 ms | p95 ms |
+|---|---|---|---|---|---|---|---|
+| r0_production (baseline) | 0.2165 | 0.644 | 0.691 | 0.633 | 0.626 | 161 | 251 |
+| r2a_negated | 0.1965 | 0.606 | 0.741 | 0.734 | 0.604 | 145 | 254 |
+| r2c_neutral_wording | 0.1894 | 0.564 | 0.748 | 0.691 | 0.568 | 144 | 234 |
+| deterministic check (0/1) | 0.4245 | 2.93 | 0.576 | 0.576 | n/a | n/a | n/a |
+
+Paired window-cluster bootstrap (18 windows, 2000 resamples), Brier difference vs baseline:
+- r2a_negated: -0.020, 95% CI [-0.073, +0.035]
+- r2c_neutral_wording: -0.027, 95% CI [-0.068, +0.015]
+
+Dev check on the 60-state sample, same comparison: r2a -0.059 [-0.097, -0.026];
+r2c -0.049 [-0.084, -0.018] (38 windows). The dev gain holds in sign but did not hold up at
+full scale on holdout with a CI that crosses zero.
+
+## Answer variance (identical states re-asked)
+
+20 dev states, 3 answers each (repeat index in cache key), `results/variance_*.json`:
+- r0_production: mean range 0.03, max 0.09, 1 of 20 states flips across 0.60.
+- r2c_neutral_wording: mean range 0.02, max 0.04, 0 flips.
+
+## Budget used
+
+1129 live API calls of 1500 (0 errors). Cache hits: all reruns of identical payloads.

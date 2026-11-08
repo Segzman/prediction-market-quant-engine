@@ -88,6 +88,8 @@ The idea was simple: instead of running the whole model stack, gather a handful 
 
 **Status:** the plumbing is built and tested; the four questions above are open. Answering them needs logged JEV calls with latency and cost per call, compared against the deterministic path on the same windows. Whether JEV improves decisions is not established and it has not been evaluated out of sample, so it stays an experiment, separate from the core models (A, B, C, P), which are my own. The lesson so far: the integration pattern (gate, cache, fail closed, threshold) matters more than the model.
 
+**Question-framing experiment:** [research/jev_framing/README.md](research/jev_framing/README.md). On 139 holdout states (18 windows), a neutral wording cut Brier from 0.217 to 0.189 vs the production wording, but the 95% interval includes zero. Calls only, no billing data.
+
 ## Architecture
 
 ```
