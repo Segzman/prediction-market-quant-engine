@@ -1,0 +1,8 @@
+{
+  "name": "r2b_calibration_anchor",
+  "hypothesis": "Anchoring the scale (0.5 means the evidence cannot separate the sides, 0.9 means strong evidence) should reduce overconfident extremes seen in the 0.8-1.0 and 0.0-0.2 bins of round 1.",
+  "question_type": "noul",
+  "answer_mode": "agreement",
+  "state_fields": ["seconds_remaining", "strongest_side", "strongest_price", "tick_move_pct", "directional_consistency", "acceleration_pct", "up_price_momentum", "down_price_momentum"],
+  "instructions": "Does observed BTC movement corroborate Polymarket's strongest side ({strongest_side})? {strongest_side} requires {direction_word} BTC movement. Use the scale carefully: 0.5 means the evidence cannot separate the sides, 0.9 means the evidence is strong. Weigh window direction against recent tick direction, consistency and acceleration, and whether contract movement supports that side. Judge directional agreement, not settlement probability."
+}

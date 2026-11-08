@@ -1,0 +1,8 @@
+{
+  "name": "r0_production",
+  "hypothesis": "Baseline: the production framing from strategy/jev.py, unchanged. Asks about directional agreement with the strongest side, with the 7 production state fields.",
+  "question_type": "noul",
+  "answer_mode": "agreement",
+  "state_fields": ["seconds_remaining", "strongest_side", "tick_move_pct", "directional_consistency", "acceleration_pct", "up_price_momentum", "down_price_momentum"],
+  "instructions": "Does observed BTC movement corroborate Polymarket's strongest side ({strongest_side})? {strongest_side} requires {direction_word} BTC movement. Weigh window direction against recent tick direction, consistency and acceleration, and whether contract movement supports that side. Judge directional agreement, not settlement probability."
+}

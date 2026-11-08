@@ -29,3 +29,8 @@ data/
 # Tuning runtime snapshots
 runtime_*.json
 source_copy.zip
+
+# JEV framing experiment: raw response cache and call budget (no secrets, but kept local)
+research/jev_framing/cache/
+# re-include the small anonymized dataset that the generic data/ rule above would hide
+!research/jev_framing/data/

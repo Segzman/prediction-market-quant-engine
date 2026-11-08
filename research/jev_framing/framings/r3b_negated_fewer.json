@@ -1,0 +1,8 @@
+{
+  "name": "r3b_negated_fewer",
+  "hypothesis": "Fewer features (r1b) plus the contradiction wording (r2a). Tests whether the momentum and acceleration fields add anything once the question is framed symmetrically.",
+  "question_type": "noul",
+  "answer_mode": "negated",
+  "state_fields": ["seconds_remaining", "strongest_side", "strongest_price", "tick_move_pct", "directional_consistency"],
+  "instructions": "Does observed BTC movement contradict Polymarket's strongest side ({strongest_side})? {strongest_side} requires {direction_word} BTC movement, so answer high if BTC is moving against {strongest_side}. Weigh window direction against recent tick direction and consistency, and whether contract movement works against that side. Judge directional contradiction, not settlement probability."
+}

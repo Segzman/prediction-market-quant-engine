@@ -1,0 +1,8 @@
+{
+  "name": "r3c_pup_market_price",
+  "hypothesis": "Settlement wording (p_up, r1a) plus the market price (r1c). Tests whether the settlement framing benefits from the price anchor like the agreement framing did.",
+  "question_type": "noul",
+  "answer_mode": "p_up",
+  "state_fields": ["seconds_remaining", "strongest_side", "strongest_price", "tick_move_pct", "directional_consistency", "acceleration_pct", "up_price_momentum", "down_price_momentum"],
+  "instructions": "What is the probability that BTC finishes this 5-minute window above its opening price? Estimate it from the observed BTC tick move, tick direction, consistency and acceleration, and the contract prices and their momentum. Answer as a probability between 0 and 1."
+}

@@ -88,6 +88,8 @@ The idea was simple: instead of running the whole model stack, gather a handful 
 
 **Status:** the plumbing is built and tested, and every `resolve_btc_confirmation` decision now appends one JSON line to `JEV_LOG_FILE` (default `jev_calls.jsonl`, gitignored). Each line records the window, features, whether a call was made or skipped and why, cache hits, HTTP latency, returned probability, error class, both decisions, and an estimated cost from `JEV_COST_PER_CALL_USD` (default 0.0, meaning unknown). Logging is fail-safe: write errors are swallowed and never change the decision. Build the report with `python -m research.jev_report`, optionally adding `--ledger trades.jsonl` to join window outcomes and `--out docs/jev_report.md` to choose the output path. It prints and writes calls made vs skipped by reason, cache hit rate, latency p50/p95/max, error rate, JEV versus deterministic agreement, decisions changed by JEV, estimated total and per-session cost, and outcome accuracy with sample sizes plus a small-sample warning. The four questions above are still open: numbers are pending real runs. Whether JEV improves decisions is not established and it has not been evaluated out of sample, so it stays an experiment, separate from the core models (A, B, C, P), which are my own. The lesson so far: the integration pattern (gate, cache, fail closed, threshold) matters more than the model.
 
+**Question-framing experiment:** [research/jev_framing/README.md](research/jev_framing/README.md). On 139 holdout states (18 windows), a neutral wording cut Brier from 0.217 to 0.189 vs the production wording, but the 95% interval includes zero. Calls only, no billing data.
+
 ## Architecture
 
 ```
