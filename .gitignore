@@ -36,3 +36,6 @@ research/jev_framing/cache/
 !research/jev_framing/data/
 # Research evaluation sample and JEV replay cache (committed on purpose)
 !research/data/
+
+# Month-long Polymarket backtest raw caches (re-fetchable via research/month_backtest/fetch.py)
+research/month_backtest/cache/
