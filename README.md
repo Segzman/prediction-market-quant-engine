@@ -19,6 +19,17 @@ The engine:
 5. Sizes the bet with a bankroll-aware rule (Kelly is available as an upper bound), and routes it through a dry-run or live order layer.
 6. Records every submission, fill, cancellation, and resolution to an append-only JSONL ledger, which feeds the research and reporting scripts.
 
+## Live paper run
+
+[![Paper PnL](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Segzman/prediction-market-quant-engine/live-status/status/badge-pnl.json)](https://github.com/Segzman/prediction-market-quant-engine/blob/live-status/status/LIVE.md)
+[![Paper trades](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Segzman/prediction-market-quant-engine/live-status/status/badge-trades.json)](https://github.com/Segzman/prediction-market-quant-engine/blob/live-status/status/LIVE.md)
+[![Paper uptime](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Segzman/prediction-market-quant-engine/live-status/status/badge-uptime.json)](https://github.com/Segzman/prediction-market-quant-engine/blob/live-status/status/LIVE.md)
+[![Last update](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Segzman/prediction-market-quant-engine/live-status/status/badge-updated.json)](https://github.com/Segzman/prediction-market-quant-engine/blob/live-status/status/LIVE.md)
+
+Full page: [status/LIVE.md](https://github.com/Segzman/prediction-market-quant-engine/blob/live-status/status/LIVE.md).
+
+The numbers update every 15 minutes from the VM and are paper only: no real money, and no claim of edge. Note: the badges show "not found" until the VM run is live, which starts when the VM run is live.
+
 ## Strategy and Models
 
 All formulas below are taken from `strategy/` and `risk/`.

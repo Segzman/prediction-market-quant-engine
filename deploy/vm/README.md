@@ -28,6 +28,12 @@ other than true, the guard refuses to start the bot unless the operator sets
 - `pmqe-heal.service` plus `pmqe-heal.timer`: a check every five minutes.
 - `pmqe-logsync.service` plus `pmqe-logsync.timer`: a private paper log backup
   every ten minutes.
+- `pmqe-publish.service` plus `pmqe-publish.timer`: every 15 minutes, `publish_status.sh`
+  runs `research/live_summary.py` and pushes only `status/` to the `live-status` branch of
+  the public repository, using the deploy key `~/.ssh/pmqe_public_ed25519` (Host alias
+  `pmqe-public-gh`). Bootstrap prints the public key on first run; add it as a deploy key
+  with write access to `Segzman/prediction-market-quant-engine`. Git errors never fail the bot;
+  the last publish time is shown by `check.sh`.
 - `/etc/logrotate.d/pmqe`: daily rotation for the file logs, 14 copies kept.
 
 The state directory is guarded with mode 700. The `.env` file is created from
@@ -260,6 +266,7 @@ runs the one-line command.
 - `heal.sh`: the five-minute repair check.
 - `check.sh`: operator and remote-agent health summary.
 - `logsync.sh`: private paper log backup and restore.
+- `publish_status.sh`: public paper status publish to the `live-status` branch.
 - `pmqe.env.example`: template copied to `~/pmqe-state/.env`.
 - `logrotate/pmqe`: log rotation template.
 - `systemd/`: unit and timer templates.
