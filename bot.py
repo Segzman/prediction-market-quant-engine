@@ -145,6 +145,14 @@ from ops.resolution import (
     sweep_unresolved_trades_once as _sweep_unresolved_trades_once,
     wait_for_market_resolution as _wait_for_market_resolution,
 )
+from ops.formatting import (
+    fit_text,
+    format_age,
+    format_book_snapshot,
+    format_price,
+    format_prob,
+    format_runtime,
+)
 from ops.lock import process_lock
 from persistence.ledger import Ledger
 from risk.guard import DailyGuard
@@ -1069,33 +1077,6 @@ class SnipeSelection:
     probabilities: dict[str, float] = field(default_factory=dict)
 
 
-def format_runtime(total_seconds: float) -> str:
-    total = max(0, int(total_seconds))
-    hours, rem = divmod(total, 3600)
-    minutes, seconds = divmod(rem, 60)
-    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-
-
-def format_price(value: float | None, *, digits: int = 2) -> str:
-    if value is None:
-        return "-"
-    return f"${value:.{digits}f}"
-
-
-def format_prob(value: float | None) -> str:
-    if value is None:
-        return "-"
-    return f"{value:.3f}"
-
-
-def format_book_snapshot(label: str, snapshot) -> str:
-    if snapshot is None:
-        return f"{label} a-/b- ask=- bid=-"
-    ask = "-" if snapshot.best_ask is None else f"{snapshot.best_ask:.3f}"
-    bid = "-" if snapshot.best_bid is None else f"{snapshot.best_bid:.3f}"
-    return f"{label} a{snapshot.ask_count}/b{snapshot.bid_count} ask={ask} bid={bid}"
-
-
 def book_price_spread(snapshot: BookSnapshot | None) -> float | None:
     return _book_price_spread(snapshot)
 
@@ -1157,25 +1138,6 @@ def evaluate_trade_economics(
         liquidity_score=liquidity_score,
         logger=LOGGER,
     )
-
-
-def format_age(seconds: float) -> str:
-    if seconds < 1:
-        return "<1s"
-    if seconds < 60:
-        return f"{int(seconds)}s"
-    minutes, rem = divmod(int(seconds), 60)
-    return f"{minutes}m {rem}s"
-
-
-def fit_text(text: str, width: int) -> str:
-    if width <= 0:
-        return ""
-    if len(text) <= width:
-        return text.ljust(width)
-    if width <= 3:
-        return text[:width]
-    return f"{text[:width - 3]}..."
 
 
 def clone_window(window: WindowState | None) -> WindowState | None:
