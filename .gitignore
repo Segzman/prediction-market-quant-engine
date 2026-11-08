@@ -34,3 +34,5 @@ source_copy.zip
 research/jev_framing/cache/
 # re-include the small anonymized dataset that the generic data/ rule above would hide
 !research/jev_framing/data/
+# Research evaluation sample and JEV replay cache (committed on purpose)
+!research/data/
