@@ -217,6 +217,10 @@ JEV_NOUL_MIN_PROBABILITY: Final[float] = _get_float(
 JEV_API_TIMEOUT_SECONDS: Final[float] = _get_float(
     "JEV_API_TIMEOUT_SECONDS", 5.0
 )
+JEV_LOG_FILE: Final[str] = os.getenv("JEV_LOG_FILE", "jev_calls.jsonl")
+JEV_COST_PER_CALL_USD: Final[float] = _get_float(
+    "JEV_COST_PER_CALL_USD", 0.0
+)
 EARLY_CONVICTION_TRIGGER_PRICE: Final[float] = _get_float(
     "EARLY_CONVICTION_TRIGGER_PRICE", 0.60
 )
@@ -488,6 +492,8 @@ def validate_config(
         raise ValueError("JEV_NOUL_MIN_PROBABILITY must be between 0 and 1")
     if JEV_API_TIMEOUT_SECONDS <= 0:
         raise ValueError("JEV_API_TIMEOUT_SECONDS must be > 0")
+    if JEV_COST_PER_CALL_USD < 0:
+        raise ValueError("JEV_COST_PER_CALL_USD must be >= 0")
     if not 0 < EARLY_CONVICTION_TRIGGER_PRICE < 1:
         raise ValueError("EARLY_CONVICTION_TRIGGER_PRICE must be between 0 and 1")
     if not 0 <= EARLY_CONVICTION_MIN_SCORE <= 1:

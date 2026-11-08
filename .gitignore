@@ -10,6 +10,7 @@
 runtime_status.json
 runtime_jev.json
 alerts.jsonl
+jev_calls.jsonl
 trades*.jsonl
 shadow_demo_*.jsonl
 .bot.lock
