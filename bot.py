@@ -7,7 +7,6 @@ import copy
 import hashlib
 import json
 import logging
-import math
 import os
 import signal
 import statistics
@@ -119,6 +118,7 @@ from feeds.binance import (
 from feeds.bybit import BybitFeed, fetch_bybit_spot_price
 from feeds.gemini import GeminiFeed, fetch_gemini_spot_price
 from feeds.kraken import KrakenFeed, fetch_kraken_spot_price
+from market.slug import extract_market_slug
 from market.client import PolymarketClient, PublicPolymarketClient
 from market.finder import MarketFinder
 from market.kalshi import get_btc_yes_probability
@@ -149,7 +149,10 @@ from ops.lock import process_lock
 from persistence.ledger import Ledger
 from risk.guard import DailyGuard
 from risk.sizing import fixed_size, get_bet_size, plan_position_sizes
+from sim.demo import DemoClient
+from sim.feed import SimulatedFeed
 from state import BotState, ExitReason, Position, PositionStatus, WindowPhase, WindowState
+from state.session import apply_price
 from state.track import ModelTrack, TRACK_COLORS, TRACK_CSS_COLORS
 from strategy.probability import (
     ModelContext,
@@ -836,12 +839,6 @@ def check_signal_reversal(
     return reversed_positions
 
 
-def extract_market_slug(market_url: str) -> str:
-    if not market_url:
-        return ""
-    return market_url.rstrip("/").rsplit("/", 1)[-1]
-
-
 def force_interval_trades_enabled(*, live_mode: bool) -> bool:
     return LIVE_FORCE_INTERVAL_TRADES if live_mode else FORCE_INTERVAL_TRADES
 
@@ -1200,18 +1197,6 @@ def clone_window(window: WindowState | None) -> WindowState | None:
         for pos in window.positions.positions:
             new_window.positions.positions.append(copy.deepcopy(pos))
     return new_window
-
-
-def apply_price(
-    states: list[BotState],
-    price: float,
-    *,
-    updated_ts: float | None = None,
-    source: str | None = None,
-) -> None:
-    ts = time.time() if updated_ts is None else updated_ts
-    for state in states:
-        state.update_price(price, updated_ts=ts, source=source)
 
 
 def build_model_runtimes(
@@ -3927,98 +3912,6 @@ def print_banner(*, mode_label: str, model: str, asset: str, bankroll: float) ->
     print(f"  Edge req:     {EDGE_THRESHOLD * 100:.0f}¢")
     print(f"  Entry window: {ENTRY_WINDOW_START}s–{ENTRY_WINDOW_END}s before close")
     print("═══════════════════════════════════════════════════")
-
-
-class DemoClient:
-    def __init__(self, window_seconds: int = 25, *, start_ts: float | None = None):
-        self.window_seconds = window_seconds
-        self.start_ts = time.time() if start_ts is None else start_ts
-
-    def get_markets(self):
-        now = int(time.time())
-        end_ts = now + self.window_seconds
-        return {
-            "data": [
-                {
-                    "market_slug": f"btc-updown-5m-{end_ts}",
-                    "condition_id": "demo-condition",
-                    "end_date_iso": time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime(end_ts)),
-                    "tokens": [
-                        {"outcome": "Up", "token_id": "demo-up"},
-                        {"outcome": "Down", "token_id": "demo-down"},
-                    ],
-                }
-            ]
-        }
-
-    def get_order_book(self, token_id: str):
-        if token_id == "demo-up":
-            best_ask = 0.60
-            best_bid = 0.59
-        else:
-            best_ask = 0.40
-            best_bid = 0.39
-
-        asks = [
-            {"price": f"{best_ask + (level * 0.01):.2f}"}
-            for level in range(12)
-        ]
-        bids = [
-            {"price": f"{max(0.01, best_bid - (level * 0.01)):.2f}"}
-            for level in range(12)
-        ]
-        return {"asks": asks, "bids": bids}
-
-    def get_market_resolution(self, slug: str) -> dict | None:
-        try:
-            end_ts = int(extract_market_slug(slug).rsplit("-", 1)[-1])
-        except (TypeError, ValueError):
-            return None
-
-        if time.time() < end_ts:
-            return None
-
-        window_index = max(0, int((end_ts - int(self.start_ts)) // self.window_seconds) - 1)
-        resolved_up = (window_index % 2) == 0
-        return {
-            "resolved_up": resolved_up,
-            "closed": True,
-            "closed_time": time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime(end_ts)),
-            "final_price": None,
-            "price_to_beat": None,
-            "uma_resolution_status": "SIMULATED",
-        }
-
-
-class SimulatedFeed:
-    def __init__(
-        self,
-        state_or_states: BotState | list[BotState],
-        *,
-        base_price: float = 82000.0,
-        window_seconds: int = 25,
-        start_ts: float | None = None,
-    ):
-        self.states = (
-            state_or_states
-            if isinstance(state_or_states, list)
-            else [state_or_states]
-        )
-        self.base_price = base_price
-        self.window_seconds = window_seconds
-        self._start = time.time() if start_ts is None else start_ts
-
-    async def connect(self) -> None:
-        while True:
-            elapsed = time.time() - self._start
-            window_index = int(elapsed // self.window_seconds)
-            phase_elapsed = elapsed % self.window_seconds
-            direction = 1 if window_index % 2 == 0 else -1
-            drift = direction * phase_elapsed * 32.0
-            oscillation = math.sin(elapsed / 2.5) * 12.0
-            price = self.base_price + (window_index * 8.0) + drift + oscillation
-            apply_price(self.states, price)
-            await asyncio.sleep(1)
 
 
 def fetch_binance_price_snapshot(asset: str) -> float:
