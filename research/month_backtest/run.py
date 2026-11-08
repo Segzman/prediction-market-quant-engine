@@ -943,6 +943,11 @@ def render_markdown(result: dict, generated_on: str) -> str:
         "queue model beyond a flat slippage charge."
     )
     add(
+        "- The sim's positive PnL is most likely a data artifact, not an edge: contract quotes are up to 120 s old while "
+        "BTC prices are per second, so a model can react to BTC moves the stale quote has not priced yet. The same models "
+        "lose to the market on Brier, which is the cleaner test. Live trading would face fresh quotes and real fills."
+    )
+    add(
         "- Decision states inside one window are correlated. Brier and hit-rate CIs use Wilson intervals on states, while "
         "the paired Brier differences and trade PnL CIs resample whole windows."
     )
