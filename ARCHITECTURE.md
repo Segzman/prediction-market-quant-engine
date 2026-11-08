@@ -4,7 +4,7 @@
 
 ```
 bot/
-├── bot.py                     # entry point — asyncio orchestrator and trading loop
+├── bot.py                     # entry point: asyncio orchestrator and trading loop
 ├── cli.py                     # CLI argument parsing and model-name validation
 ├── sim/
 │   ├── __init__.py
