@@ -6,7 +6,6 @@ from typing import Final
 
 from dotenv import load_dotenv
 
-
 load_dotenv()
 
 
@@ -73,7 +72,8 @@ ALERT_RISK_BREACH_THROTTLE_SECONDS: Final[float] = _get_float(
 # Signal thresholds
 MOMENTUM_THRESHOLD: Final[float] = _get_float("MOMENTUM_THRESHOLD", 0.0005)
 EDGE_THRESHOLD: Final[float] = _get_float("EDGE_THRESHOLD", 0.06)
-FORCE_INTERVAL_TRADES: Final[bool] = _get_bool("FORCE_INTERVAL_TRADES", False)  # DISABLED: Don't force low-quality trades
+# DISABLED: Don't force low-quality trades
+FORCE_INTERVAL_TRADES: Final[bool] = _get_bool("FORCE_INTERVAL_TRADES", False)
 HEDGE_ENABLED: Final[bool] = _get_bool("HEDGE_ENABLED", True)
 HEDGE_FRACTION: Final[float] = _get_float("HEDGE_FRACTION", 0.50)
 HEDGE_BANKROLL_RESERVE_FRACTION: Final[float] = _get_float(
@@ -90,32 +90,68 @@ HEDGE_MAX_LOSS_PCT: Final[float] = _get_float("HEDGE_MAX_LOSS_PCT", 0.02)
 
 # Exit targets (early exits for profit/loss management)
 EXIT_TAKE_PROFIT_PCT: Final[float] = _get_float("EXIT_TAKE_PROFIT_PCT", 0.15)  # 15% gain = exit (trade 1)
-EXIT_TP1_PCT: Final[float] = _get_float("EXIT_TP1_PCT", 0.06)  # Tiered TP1: bank part early at +6%, runner to TP2 (fee-aware sweep: 0.06 beats 0.08/0.10 on both seeds)
-EXIT_TP1_FRACTION: Final[float] = _get_float("EXIT_TP1_FRACTION", 0.5)  # Fraction of size banked at TP1
-EXIT_TRAIL_PCT: Final[float] = _get_float("EXIT_TRAIL_PCT", 0.0)  # Trailing ratchet: SL follows highest price down to -6%; 0 = disabled (sim shows trails chop winners; enable only on live evidence)
-MOMENTUM_SL_VELOCITY_PCT: Final[float] = _get_float("MOMENTUM_SL_VELOCITY_PCT", 0.08)          # Exit immediately if price drops >8% in the velocity window
-MOMENTUM_SL_VELOCITY_WINDOW: Final[float] = _get_float("MOMENTUM_SL_VELOCITY_WINDOW", 3.0)     # Seconds to measure velocity over
-EARLY_WINDOW_TP_PCT: Final[float] = _get_float("EARLY_WINDOW_TP_PCT", 0.08)       # Aggressive TP when >100s remaining — grab profit before reversal
-LATE_WINDOW_TP_PCT: Final[float] = _get_float("LATE_WINDOW_TP_PCT", 0.20)         # Patient TP when <100s remaining — hold for bigger gain, window closing soon
-LATE_WINDOW_THRESHOLD_SECONDS: Final[int] = _get_int("LATE_WINDOW_THRESHOLD_SECONDS", 100)  # Switch from aggressive to patient mode below this seconds_remaining
-EXIT_STOP_LOSS_PCT: Final[float] = _get_float("EXIT_STOP_LOSS_PCT", 0.12)  # 12% loss = exit (joint entry+exit sweep, seeds 7+8)
+# Tiered TP1: bank part early at +6%, runner to TP2
+# Fee-aware sweep: 0.06 beats 0.08/0.10 on both seeds.
+EXIT_TP1_PCT: Final[float] = _get_float("EXIT_TP1_PCT", 0.06)
+# Fraction of size banked at TP1
+EXIT_TP1_FRACTION: Final[float] = _get_float("EXIT_TP1_FRACTION", 0.5)
+# Trailing ratchet: SL follows highest price down to -6%; 0 = disabled
+# Sim shows trails chop winners; enable only on live evidence.
+EXIT_TRAIL_PCT: Final[float] = _get_float("EXIT_TRAIL_PCT", 0.0)
+# Exit immediately if price drops >8% in the velocity window
+MOMENTUM_SL_VELOCITY_PCT: Final[float] = _get_float("MOMENTUM_SL_VELOCITY_PCT", 0.08)
+# Seconds to measure velocity over
+MOMENTUM_SL_VELOCITY_WINDOW: Final[float] = _get_float("MOMENTUM_SL_VELOCITY_WINDOW", 3.0)
+# Aggressive TP when >100s remaining, grab profit before reversal
+EARLY_WINDOW_TP_PCT: Final[float] = _get_float("EARLY_WINDOW_TP_PCT", 0.08)
+# Patient TP when <100s remaining, hold for bigger gain as the window closes soon
+LATE_WINDOW_TP_PCT: Final[float] = _get_float("LATE_WINDOW_TP_PCT", 0.20)
+# Switch from aggressive to patient mode below this seconds_remaining
+LATE_WINDOW_THRESHOLD_SECONDS: Final[int] = _get_int("LATE_WINDOW_THRESHOLD_SECONDS", 100)
+# 12% loss = exit (joint entry+exit sweep, seeds 7+8)
+EXIT_STOP_LOSS_PCT: Final[float] = _get_float("EXIT_STOP_LOSS_PCT", 0.12)
 HIGH_CONVICTION_ENTRY_THRESHOLD: Final[float] = _get_float("HIGH_CONVICTION_ENTRY_THRESHOLD", 0.70)
-CONVICTION_DECAY_FLOOR: Final[float] = _get_float("CONVICTION_DECAY_FLOOR", 0.60)  # Exit if conviction drops below this after entry
-CONVICTION_DECAY_SECONDS: Final[float] = _get_float("CONVICTION_DECAY_SECONDS", 5.0)  # Must stay below floor for this long before exiting  # Entries at or above this price use a wider SL
-HIGH_CONVICTION_MIN_ELAPSED_SECONDS: Final[int] = _get_int("HIGH_CONVICTION_MIN_ELAPSED_SECONDS", 50)  # Block high-conviction entries until this many seconds into the window (avoid early pump fakes)
-HIGH_CONVICTION_SL_PCT: Final[float] = _get_float("HIGH_CONVICTION_SL_PCT", 0.12)  # 12% SL — catches slow grinds (velocity SL handles fast crashes)
-HIGH_CONVICTION_TIME_EXIT: Final[int] = _get_int("HIGH_CONVICTION_TIME_EXIT", 20)  # Base time exit for high-conviction entries (joint sweep: 20s beats 15s)
-HIGH_CONVICTION_TIME_EXTENSION_SECONDS: Final[int] = _get_int("HIGH_CONVICTION_TIME_EXTENSION_SECONDS", 5)  # Extend hold by this many seconds each time price is still rising at time exit
-EXIT_TIME_SECONDS: Final[int] = _get_int("EXIT_TIME_SECONDS", 5)  # Low-conviction: exit at 5s if profitable (green)
-LOW_CONVICTION_HARD_TIME_EXIT: Final[int] = _get_int("LOW_CONVICTION_HARD_TIME_EXIT", 15)  # Low-conviction: hard exit at 15s regardless of P&L
-EXIT_REVERSE_SIGNAL: Final[bool] = _get_bool("EXIT_REVERSE_SIGNAL", True)  # Exit if signal reverses
-SL_CONFIRMATION_SECONDS: Final[float] = _get_float("SL_CONFIRMATION_SECONDS", 2.0)  # SL must be breached for N seconds before exit (borderline breaches only); clears if price recovers
-SL_INSTANT_BREACH_PCT: Final[float] = _get_float("SL_INSTANT_BREACH_PCT", 0.015)  # If price is this far BELOW stop_loss_price (as fraction of SL price), skip confirmation and exit immediately
-MIN_HOLD_SECONDS: Final[float] = _get_float("MIN_HOLD_SECONDS", 0.0)  # Don't exit (TP/SL/TIME) before this many seconds; hard-crash SL always fires regardless
+# Exit if conviction drops below this after entry
+CONVICTION_DECAY_FLOOR: Final[float] = _get_float("CONVICTION_DECAY_FLOOR", 0.60)
+# Must stay below floor for this long before exiting
+CONVICTION_DECAY_SECONDS: Final[float] = _get_float("CONVICTION_DECAY_SECONDS", 5.0)
+# Block high-conviction entries until this many seconds into the window
+# (avoid early pump fakes)
+HIGH_CONVICTION_MIN_ELAPSED_SECONDS: Final[int] = _get_int(
+    "HIGH_CONVICTION_MIN_ELAPSED_SECONDS", 50
+)
+# 12% SL, catches slow grinds (velocity SL handles fast crashes)
+HIGH_CONVICTION_SL_PCT: Final[float] = _get_float("HIGH_CONVICTION_SL_PCT", 0.12)
+# Base time exit for high-conviction entries (joint sweep: 20s beats 15s)
+HIGH_CONVICTION_TIME_EXIT: Final[int] = _get_int("HIGH_CONVICTION_TIME_EXIT", 20)
+# Extend hold by this many seconds each time price is still rising at time exit
+HIGH_CONVICTION_TIME_EXTENSION_SECONDS: Final[int] = _get_int(
+    "HIGH_CONVICTION_TIME_EXTENSION_SECONDS", 5
+)
+# Low-conviction: exit at 5s if profitable (green)
+EXIT_TIME_SECONDS: Final[int] = _get_int("EXIT_TIME_SECONDS", 5)
+# Low-conviction: hard exit at 15s regardless of P&L
+LOW_CONVICTION_HARD_TIME_EXIT: Final[int] = _get_int("LOW_CONVICTION_HARD_TIME_EXIT", 15)
+# Exit if signal reverses
+EXIT_REVERSE_SIGNAL: Final[bool] = _get_bool("EXIT_REVERSE_SIGNAL", True)
+# SL must be breached for N seconds before exit (borderline breaches only)
+# Clears if price recovers.
+SL_CONFIRMATION_SECONDS: Final[float] = _get_float("SL_CONFIRMATION_SECONDS", 2.0)
+# If price is this far BELOW stop_loss_price (as fraction of SL price),
+# skip confirmation and exit immediately.
+SL_INSTANT_BREACH_PCT: Final[float] = _get_float("SL_INSTANT_BREACH_PCT", 0.015)
+# Don't exit (TP/SL/TIME) before this many seconds; hard-crash SL always fires
+MIN_HOLD_SECONDS: Final[float] = _get_float("MIN_HOLD_SECONDS", 0.0)
 # Momentum-aware SL suppression: extends the confirmation window when momentum strongly supports the trade
 MOMENTUM_SL_SUPPRESS_ENABLED: Final[bool] = _get_bool("MOMENTUM_SL_SUPPRESS_ENABLED", True)
-MOMENTUM_SL_SUPPRESS_THRESHOLD: Final[float] = _get_float("MOMENTUM_SL_SUPPRESS_THRESHOLD", 0.65)  # Suppression score needed to extend window (Kaufman ER threshold)
-MOMENTUM_SL_MAX_WINDOW_SECONDS: Final[float] = _get_float("MOMENTUM_SL_MAX_WINDOW_SECONDS", 10.0)  # Hard cap on suppression window (~0.5× 20s autocorrelation half-life from Cont et al.)
+# Suppression score needed to extend window (Kaufman ER threshold)
+MOMENTUM_SL_SUPPRESS_THRESHOLD: Final[float] = _get_float(
+    "MOMENTUM_SL_SUPPRESS_THRESHOLD", 0.65
+)
+# Hard cap on suppression window (~0.5x 20s autocorrelation half-life from Cont et al.)
+MOMENTUM_SL_MAX_WINDOW_SECONDS: Final[float] = _get_float(
+    "MOMENTUM_SL_MAX_WINDOW_SECONDS", 10.0
+)
 HEDGE_COOLDOWN_SECONDS: Final[int] = _get_int("HEDGE_COOLDOWN_SECONDS", 60)
 
 # Entry timing
@@ -134,7 +170,8 @@ EARLY_ENTRY_START_SECONDS: Final[int] = _get_int(
 ENTRY_MIN_CONTRACT_PRICE: Final[float] = _get_float("ENTRY_MIN_CONTRACT_PRICE", 0.50)
 ENTRY_MAX_CONTRACT_PRICE: Final[float] = _get_float("ENTRY_MAX_CONTRACT_PRICE", 0.62)
 LIQUIDITY_MIN_ASK_COUNT: Final[int] = _get_int("LIQUIDITY_MIN_ASK_COUNT", 10)
-LIQUIDITY_MIN_BID_COUNT: Final[int] = _get_int("LIQUIDITY_MIN_BID_COUNT", 3)  # Lowered: at extreme prices (0.90+) the losing side naturally has few bids
+# Lowered: at extreme prices (0.90+) the losing side naturally has few bids
+LIQUIDITY_MIN_BID_COUNT: Final[int] = _get_int("LIQUIDITY_MIN_BID_COUNT", 3)
 LIQUIDITY_MAX_SIDE_SPREAD: Final[float] = _get_float(
     "LIQUIDITY_MAX_SIDE_SPREAD", _get_float("LIQUIDITY_MAX_SPREAD", 0.08)
 )
@@ -163,7 +200,8 @@ LATE_CONVICTION_MIN_POLY_SCORE: Final[float] = _get_float(
     "LATE_CONVICTION_MIN_POLY_SCORE", 0.75  # All losers had conviction <0.75
 )
 LATE_CONVICTION_LOW_PRICE_MIN_POLY_SCORE: Final[float] = _get_float(
-    "LATE_CONVICTION_LOW_PRICE_MIN_POLY_SCORE", 0.78  # floor: threshold at window close for low-price entries (0.60–0.69)
+    "LATE_CONVICTION_LOW_PRICE_MIN_POLY_SCORE",
+    0.78,  # floor: threshold at window close for low-price entries (0.60-0.69)
 )
 # Conviction thresholds at window open — decay linearly to the floor as window nears close
 # Prevents trigger-happy entries early in window when pump fakes are common
@@ -236,13 +274,16 @@ MAX_BET_USDC: Final[float] = _get_float("MAX_BET_USDC", 5.0)
 MIN_BET_USDC: Final[float] = _get_float("MIN_BET_USDC", 2.0)
 MAX_DAILY_LOSS_USDC: Final[float] = _get_float("MAX_DAILY_LOSS_USDC", 20.0)
 MAX_TRADES_PER_DAY: Final[int] = _get_int("MAX_TRADES_PER_DAY", 100)
-MAX_POSITIONS_PER_WINDOW: Final[int] = _get_int("MAX_POSITIONS_PER_WINDOW", 3)  # Max concurrent positions per window
+# Max concurrent positions per window
+MAX_POSITIONS_PER_WINDOW: Final[int] = _get_int("MAX_POSITIONS_PER_WINDOW", 3)
 MAX_OPEN_ORDERS: Final[int] = _get_int("MAX_OPEN_ORDERS", MAX_POSITIONS_PER_WINDOW)
 MAX_CONCURRENT_POSITIONS: Final[int] = _get_int(
     "MAX_CONCURRENT_POSITIONS", MAX_POSITIONS_PER_WINDOW
 )
-COOLDOWN_SECONDS: Final[int] = _get_int("COOLDOWN_SECONDS", 5)  # Cooldown between entries (all entries are now 0.79+)
-LOW_CONVICTION_COOLDOWN_SECONDS: Final[int] = _get_int("LOW_CONVICTION_COOLDOWN_SECONDS", 10)  # Unused: min entry is now 0.79, no low-conviction entries
+# Cooldown between entries (all entries are now 0.79+)
+COOLDOWN_SECONDS: Final[int] = _get_int("COOLDOWN_SECONDS", 5)
+# Unused: min entry is now 0.79, no low-conviction entries
+LOW_CONVICTION_COOLDOWN_SECONDS: Final[int] = _get_int("LOW_CONVICTION_COOLDOWN_SECONDS", 10)
 CONSECUTIVE_LOSS_PAUSE_SECONDS: Final[int] = _get_int(
     "CONSECUTIVE_LOSS_PAUSE_SECONDS", 60
 )

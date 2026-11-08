@@ -1,8 +1,9 @@
-import time
 import asyncio
+import time
+
 import pytest
 
-from market.orderer import BookSnapshot, OrderStatus, Orderer
+from market.orderer import BookSnapshot, Orderer, OrderStatus
 from state.types import Direction
 
 

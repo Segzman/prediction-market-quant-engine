@@ -18,9 +18,12 @@ Limitation: logs record momentum at entry, not at SL trigger time. The simulatio
 treats entry momentum as a proxy for momentum at SL trigger, which slightly
 over-estimates suppression applicability.
 """
-import sys, pathlib
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from __future__ import annotations
+
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 import glob
 import json
@@ -174,10 +177,19 @@ def run(paths: list[str]) -> None:
         else:
             hard_crash.append((trade, res, score))
 
-    print(f"\nSL classification:")
-    print(f"  Hard crash (deep SL, polling lag):  {len(hard_crash):4d}  ({100*len(hard_crash)/len(sl_exits):.1f}%)")
-    print(f"  Borderline — momentum suppressed:   {len(borderline_suppressed):4d}  ({100*len(borderline_suppressed)/len(sl_exits):.1f}%)")
-    print(f"  Borderline — momentum not met:      {len(borderline_unsuppressed):4d}  ({100*len(borderline_unsuppressed)/len(sl_exits):.1f}%)")
+    print("\nSL classification:")
+    print(
+        f"  Hard crash (deep SL, polling lag):  {len(hard_crash):4d}  "
+        f"({100*len(hard_crash)/len(sl_exits):.1f}%)"
+    )
+    print(
+        f"  Borderline — momentum suppressed:   {len(borderline_suppressed):4d}  "
+        f"({100*len(borderline_suppressed)/len(sl_exits):.1f}%)"
+    )
+    print(
+        f"  Borderline — momentum not met:      {len(borderline_unsuppressed):4d}  "
+        f"({100*len(borderline_unsuppressed)/len(sl_exits):.1f}%)"
+    )
 
     # Baseline PnL
     all_pnl = sum(res.pnl for _, res, *_ in sl_exits)
@@ -185,7 +197,7 @@ def run(paths: list[str]) -> None:
     bl_sup_pnl = sum(res.pnl for _, res, _, __ in borderline_suppressed)
     bl_unsup_pnl = sum(res.pnl for _, res, _ in borderline_unsuppressed)
 
-    print(f"\nBaseline PnL breakdown:")
+    print("\nBaseline PnL breakdown:")
     print(f"  Hard crash losses:               ${hard_pnl:+.2f}")
     print(f"  Borderline suppressed losses:    ${bl_sup_pnl:+.2f}")
     print(f"  Borderline unsuppressed losses:  ${bl_unsup_pnl:+.2f}")
@@ -207,7 +219,7 @@ def run(paths: list[str]) -> None:
         print(f"  Neutral (50/50 recover):          ${all_pnl + neu_delta:+.2f}  (delta ${neu_delta:+.2f})")
         print(f"  Pessimistic (all keep falling):   ${all_pnl + pes_delta:+.2f}  (delta ${pes_delta:+.2f})")
 
-        print(f"\nMomentum scores for suppressed borderline SLs:")
+        print("\nMomentum scores for suppressed borderline SLs:")
         scores = sorted([score for _, _, score, __ in borderline_suppressed])
         print(f"  Min: {min(scores):.3f}  Median: {scores[len(scores)//2]:.3f}  Max: {max(scores):.3f}")
         print(f"  Extension windows: {sorted(set(round(w,1) for _,_,_,w in borderline_suppressed))}")
@@ -216,11 +228,16 @@ def run(paths: list[str]) -> None:
     all_scores = [_suppression_score(t.direction, t.snap) for t, _, *_ in sl_exits]
     buckets = {"<0.4": 0, "0.4–0.55": 0, "0.55–0.65": 0, "0.65–0.80": 0, "≥0.80": 0}
     for s in all_scores:
-        if s < 0.4: buckets["<0.4"] += 1
-        elif s < 0.55: buckets["0.4–0.55"] += 1
-        elif s < 0.65: buckets["0.55–0.65"] += 1
-        elif s < 0.80: buckets["0.65–0.80"] += 1
-        else: buckets["≥0.80"] += 1
+        if s < 0.4:
+            buckets["<0.4"] += 1
+        elif s < 0.55:
+            buckets["0.4–0.55"] += 1
+        elif s < 0.65:
+            buckets["0.55–0.65"] += 1
+        elif s < 0.80:
+            buckets["0.65–0.80"] += 1
+        else:
+            buckets["≥0.80"] += 1
     print(f"\nMomentum score distribution at SL exits (all {len(sl_exits)}):")
     for k, v in buckets.items():
         bar = "█" * (v * 40 // max(len(sl_exits), 1))

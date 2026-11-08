@@ -1,20 +1,19 @@
 from __future__ import annotations
 
-import time
 import sys
+import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from persistence.ledger import Ledger
-from state.session import BotState
-from state.window import WindowState
+from persistence.ledger import Ledger  # noqa: E402
+from state.session import BotState  # noqa: E402
+from state.window import WindowState  # noqa: E402
 
 
 @pytest.fixture(autouse=True)

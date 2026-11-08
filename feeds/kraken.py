@@ -11,7 +11,6 @@ import websockets
 from config import KRAKEN_REST_SYMBOLS, KRAKEN_WS_SYMBOLS
 from state.session import BotState
 
-
 KRAKEN_WS_URL = "wss://ws.kraken.com/v2"
 KRAKEN_REST_URL = "https://api.kraken.com/0/public/Ticker"
 
@@ -81,7 +80,7 @@ class KrakenFeed:
                     while True:
                         try:
                             raw = await asyncio.wait_for(websocket.recv(), timeout=5.0)
-                        except asyncio.TimeoutError:
+                        except TimeoutError:
                             snapshot = await asyncio.to_thread(fetch_kraken_spot_price, self.asset)
                             if snapshot is None:
                                 continue

@@ -11,7 +11,6 @@ import websockets
 from config import BYBIT_REST_SYMBOLS, BYBIT_WS_SYMBOLS
 from state.session import BotState
 
-
 BYBIT_WS_URL = "wss://stream.bybit.com/v5/public/spot"
 BYBIT_REST_URL = "https://api.bybit.com/v5/market/tickers"
 
@@ -72,7 +71,7 @@ class BybitFeed:
                     while True:
                         try:
                             raw = await asyncio.wait_for(websocket.recv(), timeout=5.0)
-                        except asyncio.TimeoutError:
+                        except TimeoutError:
                             snapshot = await asyncio.to_thread(fetch_bybit_spot_price, self.asset)
                             if snapshot is None:
                                 continue

@@ -1,10 +1,9 @@
 """Position tracking for multi-trade windows with early exits."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional
-from enum import Enum
 import time
+from dataclasses import dataclass, field
+from enum import Enum
 
 
 class PositionStatus(Enum):
@@ -35,32 +34,33 @@ class Position:
     
     # Exit tracking
     status: PositionStatus = PositionStatus.OPEN
-    exit_price: Optional[float] = None
-    exit_ts: Optional[float] = None
-    exit_reason: Optional[ExitReason] = None
+    exit_price: float | None = None
+    exit_ts: float | None = None
+    exit_reason: ExitReason | None = None
     pnl_usdc: float = 0.0
     fee_usdc: float = 0.0
     
     # Exit targets (set at entry)
-    take_profit_price: Optional[float] = None
-    stop_loss_price: Optional[float] = None
+    take_profit_price: float | None = None
+    stop_loss_price: float | None = None
     # Tiered TP1: bank a fraction early, let the rest run to TP2.
-    take_profit_1_price: Optional[float] = None
+    take_profit_1_price: float | None = None
     take_profit_1_fraction: float = 0.0
     take_profit_1_taken: bool = False
     # Trailing ratchet: highest price seen; SL never ratchets below its start.
     highest_price: float = 0.0
-    time_exit_seconds: Optional[int] = None
-    time_exit_hard_seconds: Optional[int] = None  # Hard exit at this time regardless of P&L (low-conviction fallback)
+    time_exit_seconds: int | None = None
+    # Hard exit at this time regardless of P&L (low-conviction fallback)
+    time_exit_hard_seconds: int | None = None
 
     # Internal state
-    tp_sl_trigger_ts: Optional[float] = None  # Unused legacy field (kept for serialisation compat)
+    tp_sl_trigger_ts: float | None = None  # Unused legacy field (kept for serialisation compat)
     time_exit_triggered: bool = False  # True once time_exit_seconds threshold has been passed
-    sl_breach_ts: Optional[float] = None  # Timestamp when price first crossed below stop_loss_price
+    sl_breach_ts: float | None = None  # Timestamp when price first crossed below stop_loss_price
 
     # Resting GTC sell orders placed at entry (live mode only; None in dry-run)
-    sl_order_id: Optional[str] = None  # Order ID of resting SL sell at stop_loss_price
-    tp_order_id: Optional[str] = None  # Order ID of resting TP sell at take_profit_price
+    sl_order_id: str | None = None  # Order ID of resting SL sell at stop_loss_price
+    tp_order_id: str | None = None  # Order ID of resting TP sell at take_profit_price
     
     # Trade number in window for tiered exits (1st=15%, 2nd=25%, 3rd+=ride out)
     trade_number: int = 1
@@ -72,7 +72,7 @@ class Position:
     # Conviction decay exit: exit if market_conviction drops below floor for N consecutive seconds
     conviction_decay_floor: float = 0.0      # 0 = disabled; set at entry (e.g. 0.60)
     conviction_decay_seconds: float = 0.0    # how long conviction must stay below floor before exit
-    _conviction_breach_ts: Optional[float] = field(default=None, repr=False)
+    _conviction_breach_ts: float | None = field(default=None, repr=False)
 
     # Break-even trailing exit: once price crosses break_even_price (entry + fees),
     # exit immediately if it dips back below that line. Worst case: flat after fees.
@@ -128,7 +128,7 @@ class Position:
         self.status = PositionStatus.PARTIAL
         return self.take_profit_1_fraction
 
-    def trailing_stop_price(self, trail_pct: float) -> Optional[float]:
+    def trailing_stop_price(self, trail_pct: float) -> float | None:
         """Ratcheted SL: highest price minus trail %, floored at the original SL."""
         if trail_pct <= 0 or self.highest_price <= 0:
             return self.stop_loss_price
@@ -143,7 +143,7 @@ class Position:
                     min_hold_seconds: float = 0.0,
                     time_extension_seconds: int = 0,
                     market_conviction: float = 1.0,
-                    trail_pct: float = 0.0) -> tuple[bool, Optional[ExitReason]]:
+                    trail_pct: float = 0.0) -> tuple[bool, ExitReason | None]:
         """Check if position should be exited based on targets.
 
         Both UP and DOWN tokens are owned assets — profit when price rises.

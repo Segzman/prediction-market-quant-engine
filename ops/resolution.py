@@ -4,7 +4,7 @@ import asyncio
 import contextlib
 import logging
 import time
-from typing import Callable
+from collections.abc import Callable
 
 
 def fetch_binance_agg_trade_price(

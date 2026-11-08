@@ -5,16 +5,17 @@ Monte Carlo simulation of 1-day bot performance based on empirical trade data.
 Calibrated from 410 real trades (20260410-20260411) in CONVICTION_ONLY track.
 Run: python3 simulate_day.py
 """
-import sys, pathlib
+from __future__ import annotations
+
+import pathlib
+import sys
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from __future__ import annotations
-import random
-import json
-import statistics
-import os
 import glob
-from collections import defaultdict
+import json
+import random
+import statistics
 
 # ─────────────────────────────────────────────
 # 1. LOAD EMPIRICAL OUTCOME DISTRIBUTIONS
@@ -174,7 +175,7 @@ def run_simulation(n_days: int = 500, seed: int = 42) -> None:
     print("=" * 65)
     print("BAND CALIBRATION (from real logs)")
     print("=" * 65)
-    for band_name, label, lo, hi in [
+    for band_name, label, _lo, _hi in [
         ("low",  "0.60-0.70 (low conviction)",  0.60, 0.70),
         ("mid",  "0.70-0.79 (mid conviction)",  0.70, 0.79),
         ("high", "0.79-0.92 (high conviction)", 0.79, 0.92),

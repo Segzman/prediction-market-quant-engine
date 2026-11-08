@@ -1,5 +1,6 @@
-import pytest
 import math
+
+import pytest
 
 from scripts.report_performance import (
     build_fee_context,
@@ -181,8 +182,14 @@ def test_render_report_outputs_markdown_table():
 
     rendered = render_report(report)
 
-    assert "| Model | Trades | Candidates | Accept Rate | Resolved | Win Rate | Brier | Pooled Brier | Cal Gap | Gross PnL |" in rendered
-    assert "| A | 2 | 5 | 40.0% | 2 | 50.0% | 0.180 | 0.160 | 0.280 | $0.70 | $0.10 | $0.60 | 7.50 | 4.00 |" in rendered
+    assert (
+        "| Model | Trades | Candidates | Accept Rate | Resolved | Win Rate | "
+        "Brier | Pooled Brier | Cal Gap | Gross PnL |"
+    ) in rendered
+    assert (
+        "| A | 2 | 5 | 40.0% | 2 | 50.0% | 0.180 | 0.160 | 0.280 | "
+        "$0.70 | $0.10 | $0.60 | 7.50 | 4.00 |"
+    ) in rendered
     assert "Fee context:" in rendered
     assert "Candidate metrics:" in rendered
 

@@ -5,7 +5,6 @@ import statistics
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Optional
 
 from config import (
     DAY_VOL_LOOKBACK_WINDOWS,
@@ -13,9 +12,9 @@ from config import (
     DAY_VOL_MIN_WINDOWS,
     MAX_PRICE_FEED_DIVERGENCE_BPS,
     MIN_HEALTHY_PRICE_FEEDS,
+    POLYMARKET_BOOK_STALE_THRESHOLD_SECONDS,
     POLYMARKET_FEATURE_LOOKBACK_SECONDS,
     POLYMARKET_HISTORY_MAX_SAMPLES,
-    POLYMARKET_BOOK_STALE_THRESHOLD_SECONDS,
     PRICE_SOURCE_SELECTION,
     PRICE_STALE_THRESHOLD_SECONDS,
     STARTING_BANKROLL_USDC,
@@ -35,12 +34,12 @@ class TradeRecord:
     price: float
     edge: float
     model: str
-    order_id: Optional[str]
+    order_id: str | None
     dry_run: bool
     role: str = "PRIMARY"
     resolved: bool = False
     status: str = "OPEN"
-    resolved_up: Optional[bool] = None
+    resolved_up: bool | None = None
     pnl: float = 0.0
     fee_usdc: float = 0.0
     entry_regime: str = ""
@@ -54,7 +53,7 @@ class PendingOrder:
     amount_usdc: float
     price: float
     model: str
-    order_id: Optional[str]
+    order_id: str | None
     dry_run: bool
     role: str = "PRIMARY"
 
@@ -104,7 +103,7 @@ class BotState:
     consecutive_wins: int = 0
     consecutive_losses: int = 0
     starting_bankroll_usdc: float = STARTING_BANKROLL_USDC
-    current_window: Optional[WindowState] = None
+    current_window: WindowState | None = None
     trade_history: list[TradeRecord] = field(default_factory=list)
     pending_orders: list[PendingOrder] = field(default_factory=list)
     price_samples: deque[tuple[float, float]] = field(
@@ -312,7 +311,7 @@ class BotState:
         tick_move_pct = ((last_price - first_price) / first_price) if first_price > 0 else 0.0
 
         signed_moves: list[float] = []
-        for (_, previous_price), (_, price) in zip(samples, samples[1:]):
+        for (_, previous_price), (_, price) in zip(samples, samples[1:], strict=False):
             if previous_price <= 0 or price <= 0:
                 continue
             signed_moves.append(price - previous_price)
@@ -352,7 +351,7 @@ class BotState:
         price: float,
         edge: float,
         model: str,
-        order_id: Optional[str],
+        order_id: str | None,
         dry_run: bool,
         window_end_ts: int,
         role: str = "PRIMARY",
@@ -385,7 +384,7 @@ class BotState:
         amount: float,
         price: float,
         model: str,
-        order_id: Optional[str],
+        order_id: str | None,
         dry_run: bool,
         window_end_ts: int,
         role: str = "PRIMARY",
@@ -803,8 +802,12 @@ class BotState:
             latest.down_ask_size,
             latest.down_bid_size,
         )
-        up_depth_to_fill_usdc = (latest.up_total_ask_size * latest.up_ask) if latest.up_ask is not None else 0.0
-        down_depth_to_fill_usdc = (latest.down_total_ask_size * latest.down_ask) if latest.down_ask is not None else 0.0
+        up_depth_to_fill_usdc = (
+            (latest.up_total_ask_size * latest.up_ask) if latest.up_ask is not None else 0.0
+        )
+        down_depth_to_fill_usdc = (
+            (latest.down_total_ask_size * latest.down_ask) if latest.down_ask is not None else 0.0
+        )
         total_depth = up_depth_to_fill_usdc + down_depth_to_fill_usdc
         depth_imbalance = (
             (up_depth_to_fill_usdc - down_depth_to_fill_usdc) / total_depth

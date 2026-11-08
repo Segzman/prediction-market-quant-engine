@@ -3,10 +3,12 @@
 Detailed analysis of Option 1: Drawdown-Scaled Hedge Strategy
 Shows exactly what happens in each trade.
 """
-import sys, pathlib
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-
 from __future__ import annotations
+
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from dataclasses import dataclass
 from enum import Enum
@@ -149,7 +151,7 @@ def run_detailed_simulation():
     print("  Bankroll <   40% → Hedge = 125% of primary (CRITICAL MODE)")
     print("\n" + "=" * 120)
 
-    for i, (primary_price, hedge_price, direction, outcome, description) in enumerate(SCENARIO_1):
+    for i, (primary_price, hedge_price, direction, outcome, _description) in enumerate(SCENARIO_1):
         trade_num = i + 1
         bankroll_before = bankroll
         bankroll_ratio = bankroll_before / starting_bankroll
@@ -205,7 +207,12 @@ def run_detailed_simulation():
     # Print detailed table
     print("\nDETAILED TRADE TABLE:")
     print("-" * 120)
-    header = f"{'#':>3} | {'BR Before':>9} | {'Ratio':>6} | {'Hedge%':>7} | {'Primary':>7} | {'Hedge':>7} | {'Prim Px':>7} | {'Hedge Px':>8} | {'Dir→Actual':>10} | {'Gross':>7} | {'Fees':>6} | {'Net':>7} | {'BR After':>9}"
+    header = (
+        f"{'#':>3} | {'BR Before':>9} | {'Ratio':>6} | {'Hedge%':>7} | "
+        f"{'Primary':>7} | {'Hedge':>7} | {'Prim Px':>7} | {'Hedge Px':>8} | "
+        f"{'Dir→Actual':>10} | {'Gross':>7} | {'Fees':>6} | {'Net':>7} | "
+        f"{'BR After':>9}"
+    )
     print(header)
     print("-" * 120)
 
@@ -216,7 +223,13 @@ def run_detailed_simulation():
         fees_str = f"${t.fees:.2f}"
         net_str = f"${t.net_pnl:+.2f}"
 
-        row = f"{t.trade_num:>3} | ${t.bankroll_before:>8.2f} | {ratio_pct:>6} | {hedge_pct_str:>7} | ${t.primary_bet:>6.2f} | ${t.hedge_bet:>6.2f} | ${t.primary_price:>6.2f} | ${t.hedge_price:>7.2f} | {t.direction:>3}→{t.actual:>3} | {gross_str:>8} | {fees_str:>6} | {net_str:>8} | ${t.bankroll_after:>8.2f}"
+        row = (
+            f"{t.trade_num:>3} | ${t.bankroll_before:>8.2f} | {ratio_pct:>6} | "
+            f"{hedge_pct_str:>7} | ${t.primary_bet:>6.2f} | ${t.hedge_bet:>6.2f} | "
+            f"${t.primary_price:>6.2f} | ${t.hedge_price:>7.2f} | "
+            f"{t.direction:>3}→{t.actual:>3} | {gross_str:>8} | {fees_str:>6} | "
+            f"{net_str:>8} | ${t.bankroll_after:>8.2f}"
+        )
         print(row)
 
     print("-" * 120)
@@ -229,7 +242,10 @@ def run_detailed_simulation():
         print(f"\n--- Trade {t.trade_num} ---")
         print(f"  Bankroll BEFORE: ${t.bankroll_before:.2f} ({t.bankroll_ratio*100:.0f}% of start)")
         print(f"  → Hedge rule: {t.hedge_pct:.0f}% because ratio triggers that level")
-        print(f"  → Bets: ${t.primary_bet:.2f} primary + ${t.hedge_bet:.2f} hedge = ${t.primary_bet + t.hedge_bet:.2f} total")
+        print(
+            f"  → Bets: ${t.primary_bet:.2f} primary + ${t.hedge_bet:.2f} hedge "
+            f"= ${t.primary_bet + t.hedge_bet:.2f} total"
+        )
         print(f"  → Prices: Primary ${t.primary_price:.2f} vs Hedge ${t.hedge_price:.2f}")
         print(f"  → Direction: Bet {t.direction}, Actual was {t.actual}")
         print(f"  → Primary outcome: {t.primary_outcome}")

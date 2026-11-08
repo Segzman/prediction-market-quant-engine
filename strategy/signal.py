@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from config import (
     DAY_VOL_ELAPSED_MAX_SECONDS,
@@ -13,17 +12,17 @@ from config import (
     ENTRY_MAX_CONTRACT_PRICE,
     ENTRY_MIN_CONTRACT_PRICE,
     LATE_CONVICTION_EDGE_THRESHOLD,
+    LATE_CONVICTION_HIGH_PRICE_MOMENTUM_CONVICTION,
+    LATE_CONVICTION_HIGH_PRICE_THRESHOLD,
+    LATE_CONVICTION_LOW_PRICE_MIN_POLY_SCORE,
     LATE_CONVICTION_MAX_CONTRACT_PRICE,
     LATE_CONVICTION_MIN_CONTRACT_PRICE,
+    LATE_CONVICTION_MIN_MOMENTUM_CONVICTION,
     LATE_CONVICTION_MIN_POLY_SCORE,
-    LATE_CONVICTION_LOW_PRICE_MIN_POLY_SCORE,
     LATE_CONVICTION_OPEN_LOW_PRICE_MIN_POLY_SCORE,
     LATE_CONVICTION_OPEN_MIN_POLY_SCORE,
     LATE_CONVICTION_START_SECONDS,
     LATE_CONVICTION_STRONG_POLY_SCORE,
-    LATE_CONVICTION_MIN_MOMENTUM_CONVICTION,
-    LATE_CONVICTION_HIGH_PRICE_MOMENTUM_CONVICTION,
-    LATE_CONVICTION_HIGH_PRICE_THRESHOLD,
     MAX_BET_USDC,
     MOMENTUM_SL_MAX_WINDOW_SECONDS,
     MOMENTUM_SL_SUPPRESS_ENABLED,
@@ -116,7 +115,7 @@ def _evaluate_mispricing_signal(
     ledger_path: str | None = None,
     calibration_path: str | None = None,
     model_context: ModelContext | None = None,
-) -> Optional[Signal]:
+) -> Signal | None:
     if window.open_price == 0:
         window.set_open_price(btc_price)
         return None
@@ -169,7 +168,11 @@ def _late_conviction_adjustment(
     # Prevents trigger-happy entries early in the window when pump fakes are common.
     is_low_price = market_price < LATE_CONVICTION_HIGH_PRICE_THRESHOLD
     floor_poly = LATE_CONVICTION_LOW_PRICE_MIN_POLY_SCORE if is_low_price else LATE_CONVICTION_MIN_POLY_SCORE
-    open_poly = LATE_CONVICTION_OPEN_LOW_PRICE_MIN_POLY_SCORE if is_low_price else LATE_CONVICTION_OPEN_MIN_POLY_SCORE
+    open_poly = (
+        LATE_CONVICTION_OPEN_LOW_PRICE_MIN_POLY_SCORE
+        if is_low_price
+        else LATE_CONVICTION_OPEN_MIN_POLY_SCORE
+    )
     window_span = max(LATE_CONVICTION_START_SECONDS - 5, 1)
     fraction_remaining = max(0.0, min(1.0, (seconds_remaining - 5) / window_span))
     min_poly = floor_poly + (open_poly - floor_poly) * fraction_remaining
@@ -561,7 +564,7 @@ def evaluate(
     calibration_path: str | None = None,
     model_context: ModelContext | None = None,
     btc_price_available: bool = True,
-) -> Optional[Signal]:
+) -> Signal | None:
     return evaluate_with_diagnostics(
         window,
         btc_price,
@@ -591,7 +594,7 @@ def evaluate_interval(
     calibration_path: str | None = None,
     model_context: ModelContext | None = None,
     btc_price_available: bool = True,
-) -> Optional[Signal]:
+) -> Signal | None:
     evaluation = evaluate_with_diagnostics(
         window,
         btc_price,
@@ -672,7 +675,8 @@ def compute_sl_confirmation_seconds(
 
     Based on:
     - Cont, Kukanov & Stoikov (2014): OFI momentum decays with ~20s half-life in BTC
-    - Modal-tick ratio (directional_consistency) > 0.65 signals a trending regime (note: this is not true Kaufman ER but is a valid trend proxy at this timescale)
+    - Modal-tick ratio (directional_consistency) > 0.65 signals a trending regime
+      (note: this is not true Kaufman ER but is a valid trend proxy at this timescale)
     - Bouchaud et al. (2004): require acceleration >= 0 to guard against exhaustion/climax moves
     - Hard cap at MOMENTUM_SL_MAX_WINDOW_SECONDS (~0.5× AC half-life) to prevent death spirals
 

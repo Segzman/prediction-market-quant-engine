@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -128,7 +128,7 @@ def main() -> None:
     filled = backfill_outcomes(candidates, resolutions)
     rows = label_rows(last_tick_per_window(candidates), resolutions)
     rows.sort(key=lambda r: r["w"])
-    split_ts = int(datetime.fromisoformat(args.split).replace(tzinfo=timezone.utc).timestamp())
+    split_ts = int(datetime.fromisoformat(args.split).replace(tzinfo=UTC).timestamp())
     tune = [r for r in rows if r["w"] < split_ts]
     test = [r for r in rows if r["w"] >= split_ts]
     print(f"windows={len(rows)} tune={len(tune)} test={len(test)} (backfilled={filled})")
@@ -142,7 +142,10 @@ def main() -> None:
             ranked.append((tune_score[1], price_min, conv_min, tune_score,
                            score(test, price_min, conv_min)))
     ranked.sort(key=lambda item: -item[0])
-    print(f"{'config':<22} {'tune n':>6} {'tune win':>8} {'tuneEV':>7} | {'test n':>6} {'test win':>8} {'testEV':>7}")
+    print(
+        f"{'config':<22} {'tune n':>6} {'tune win':>8} {'tuneEV':>7} | "
+        f"{'test n':>6} {'test win':>8} {'testEV':>7}"
+    )
     for _, price_min, conv_min, tune_score, test_score in ranked:
         test_text = (
             f"{test_score[0]:>6} {100 * test_score[1]:>7.0f}% {test_score[2]:>+7.2f}"
@@ -155,7 +158,9 @@ def main() -> None:
 
     print("real exit-aware PnL:")
     for name, since, until in (("TUNE", 0, split_ts), ("TEST", split_ts, 2**40)):
-        for model, bucket in sorted(real_trade_pnl([args.glob, ".web_runtime/*.jsonl"], since, until).items()):
+        for model, bucket in sorted(
+            real_trade_pnl([args.glob, ".web_runtime/*.jsonl"], since, until).items()
+        ):
             avg = bucket["net"] / bucket["n"] if bucket["n"] else 0.0
             print(f"  {name} model {model}: n={bucket['n']} net=${bucket['net']:+.2f} avg=${avg:+.3f}")
 

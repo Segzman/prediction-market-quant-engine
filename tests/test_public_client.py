@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -23,7 +23,7 @@ class StubPublicClient(PublicPolymarketClient):
 def test_public_client_falls_back_to_event_detail_when_markets_not_inline():
     """An event from the /events query without inline markets is hydrated via a
     per-event /events/{id} detail fetch."""
-    end_date = (datetime.now(timezone.utc) + timedelta(minutes=5)).replace(microsecond=0)
+    end_date = (datetime.now(UTC) + timedelta(minutes=5)).replace(microsecond=0)
     end_date_iso = end_date.isoformat().replace("+00:00", "Z")
     client = StubPublicClient(
         {
@@ -69,9 +69,9 @@ def test_public_client_falls_back_to_event_detail_when_markets_not_inline():
 def test_public_client_discovers_near_term_window_when_series_returns_far_batch():
     """Regression: /series/{id} returns a far-future daily batch, but the live
     windows are only on /events?series_id=... — discovery must use that source."""
-    end_date = (datetime.now(timezone.utc) + timedelta(minutes=4)).replace(microsecond=0)
+    end_date = (datetime.now(UTC) + timedelta(minutes=4)).replace(microsecond=0)
     end_date_iso = end_date.isoformat().replace("+00:00", "Z")
-    far_future = (datetime.now(timezone.utc) + timedelta(hours=19)).replace(microsecond=0)
+    far_future = (datetime.now(UTC) + timedelta(hours=19)).replace(microsecond=0)
     far_future_iso = far_future.isoformat().replace("+00:00", "Z")
 
     client = StubPublicClient(

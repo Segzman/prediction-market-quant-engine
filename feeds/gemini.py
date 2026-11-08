@@ -10,7 +10,6 @@ import websockets
 from config import GEMINI_SYMBOLS
 from state.session import BotState
 
-
 GEMINI_WS_URL = "wss://ws.gemini.com"
 GEMINI_REST_URL = "https://api.gemini.com/v1/pubticker"
 
@@ -68,7 +67,7 @@ class GeminiFeed:
                     while True:
                         try:
                             raw = await asyncio.wait_for(websocket.recv(), timeout=5.0)
-                        except asyncio.TimeoutError:
+                        except TimeoutError:
                             snapshot = await asyncio.to_thread(fetch_gemini_spot_price, self.asset)
                             if snapshot is None:
                                 continue

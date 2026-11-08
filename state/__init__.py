@@ -1,6 +1,6 @@
-from .position import Position, PositionStatus, ExitReason, WindowPositions
+from .position import ExitReason, Position, PositionStatus, WindowPositions
 from .session import BotState, TradeRecord
-from .track import ModelTrack, TRACK_COLORS, TRACK_CSS_COLORS, TrackFormatter
+from .track import TRACK_COLORS, TRACK_CSS_COLORS, ModelTrack, TrackFormatter
 from .types import Direction
 from .window import WindowPhase, WindowState
 

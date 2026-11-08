@@ -33,7 +33,10 @@ def load_jsonl(path: Path) -> list[dict]:
 def build_fee_context() -> dict[str, float | str]:
     return {
         "market_class": "crypto",
-        "assumption": "Shadow/demo buys are scored with Polymarket crypto taker fees when fills do not include a fee.",
+        "assumption": (
+            "Shadow/demo buys are scored with Polymarket crypto taker fees "
+            "when fills do not include a fee."
+        ),
         "formula": "fee = C × p × feeRate × (p × (1 - p))^exponent",
         "fee_rate": CRYPTO_TAKER_FEE_RATE,
         "exponent": CRYPTO_TAKER_FEE_EXPONENT,
@@ -137,7 +140,10 @@ def build_probability_path_report(records: list[dict]) -> dict[str, dict[str, fl
             continue
         resolved_up = window_outcomes[int(window_end_ts)]
         probabilities = dict(candidate.get("probabilities") or {})
-        if candidate.get("direction_probability") is not None and candidate.get("direction") in {"UP", "DOWN"}:
+        if (
+            candidate.get("direction_probability") is not None
+            and candidate.get("direction") in {"UP", "DOWN"}
+        ):
             selected_up_probability = float(candidate["direction_probability"])
             if candidate.get("direction") == "DOWN":
                 selected_up_probability = 1.0 - selected_up_probability
@@ -611,16 +617,26 @@ def render_gate1_summary(summary: dict) -> str:
 
 def render_report(report: dict[str, dict[str, float]]) -> str:
     lines = [
-        "| Model | Trades | Candidates | Accept Rate | Resolved | Win Rate | Brier | Pooled Brier | Cal Gap | Gross PnL | Est Fees | Net PnL | Avg Fill Slip (bps) | Avg Submit Slip (bps) |",
+        "| Model | Trades | Candidates | Accept Rate | Resolved | Win Rate | "
+        "Brier | Pooled Brier | Cal Gap | Gross PnL | Est Fees | Net PnL | "
+        "Avg Fill Slip (bps) | Avg Submit Slip (bps) |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for model in sorted(report):
         row = report[model]
         lines.append(
-            f"| {model} | {int(row.get('trades', 0))} | {int(row.get('candidate_count', 0))} | {row.get('acceptance_rate', 0.0):.1%} | "
-            f"{int(row.get('resolved', 0))} | {row.get('win_rate', 0.0):.1%} | {row.get('brier_score', 0.0):.3f} | {row.get('pooled_brier_score', 0.0):.3f} | {row.get('calibration_error', 0.0):.3f} | "
-            f"${row.get('gross_pnl', 0.0):.2f} | ${row.get('estimated_fees', 0.0):.2f} | ${row.get('net_pnl', 0.0):.2f} | "
-            f"{row.get('avg_fill_slippage_bps', 0.0):.2f} | {row.get('avg_submit_slippage_bps', 0.0):.2f} |"
+            f"| {model} | {int(row.get('trades', 0))} | "
+            f"{int(row.get('candidate_count', 0))} | "
+            f"{row.get('acceptance_rate', 0.0):.1%} | "
+            f"{int(row.get('resolved', 0))} | {row.get('win_rate', 0.0):.1%} | "
+            f"{row.get('brier_score', 0.0):.3f} | "
+            f"{row.get('pooled_brier_score', 0.0):.3f} | "
+            f"{row.get('calibration_error', 0.0):.3f} | "
+            f"${row.get('gross_pnl', 0.0):.2f} | "
+            f"${row.get('estimated_fees', 0.0):.2f} | "
+            f"${row.get('net_pnl', 0.0):.2f} | "
+            f"{row.get('avg_fill_slippage_bps', 0.0):.2f} | "
+            f"{row.get('avg_submit_slippage_bps', 0.0):.2f} |"
         )
     context = build_fee_context()
     lines.extend(
@@ -630,7 +646,11 @@ def render_report(report: dict[str, dict[str, float]]) -> str:
                 "Fee context: crypto taker estimate used when live fill fees are absent. "
                 f"feeRate={context['fee_rate']}, exponent={context['exponent']}."
             ),
-            "Candidate metrics: acceptance rate, Brier score, pooled Brier score, and calibration gap are computed from logged candidate evaluations when a resolved window label is available.",
+            (
+                "Candidate metrics: acceptance rate, Brier score, pooled Brier "
+                "score, and calibration gap are computed from logged candidate "
+                "evaluations when a resolved window label is available."
+            ),
             f"Source: {context['source_url']}",
         ]
     )

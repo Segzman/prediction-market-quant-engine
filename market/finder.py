@@ -3,8 +3,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import datetime
 
 from config import (
     ASSET_KEYWORDS,
@@ -15,7 +14,6 @@ from config import (
 )
 from state.window import WindowState
 
-
 LOGGER = logging.getLogger("market.finder")
 
 
@@ -23,12 +21,12 @@ class MarketFinder:
     def __init__(self, client, *, asset: str = "BTC"):
         self._client = client
         self.asset = asset.upper()
-        self._cache: Optional[WindowState] = None
+        self._cache: WindowState | None = None
         self._cache_ts: float = 0.0
         self._empty_cache = False
         self._lock = threading.Lock()
 
-    def find_active_window(self) -> Optional[WindowState]:
+    def find_active_window(self) -> WindowState | None:
         with self._lock:
             now = int(time.time())
             if (

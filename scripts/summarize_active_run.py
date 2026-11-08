@@ -17,10 +17,10 @@ import time
 from pathlib import Path
 
 try:
-    from scripts.report_performance import build_report, load_jsonl
+    from scripts.report_performance import load_jsonl
 except ImportError:
     sys.path.insert(0, str(Path(__file__).parent.parent))
-    from scripts.report_performance import build_report, load_jsonl
+    from scripts.report_performance import load_jsonl
 
 
 def find_runtime_status(base_dir: Path) -> Path | None:
@@ -210,10 +210,16 @@ def render_markdown(summary: dict) -> str:
             lines.append(f"- **Win Rate**: {track['win_rate']:.1%}\n")
         if track.get("latest_signal"):
             sig = track["latest_signal"]
-            lines.append(f"- **Latest Signal**: {sig.get('direction')} (confidence: {sig.get('confidence', 0):.2f})\n")
+            lines.append(
+                f"- **Latest Signal**: {sig.get('direction')} "
+                f"(confidence: {sig.get('confidence', 0):.2f})\n"
+            )
         if track.get("resolved_pnl_summary"):
             pnl = track["resolved_pnl_summary"]
-            lines.append(f"- **Resolved PnL**: ${pnl.get('gross_pnl', 0):.2f} across {pnl.get('resolved_count', 0)} trades\n")
+            lines.append(
+                f"- **Resolved PnL**: ${pnl.get('gross_pnl', 0):.2f} across "
+                f"{pnl.get('resolved_count', 0)} trades\n"
+            )
 
     # Launch checks
     lines.append("\n## Launch Checks\n")
@@ -268,7 +274,9 @@ def main() -> None:
         "Runtime status fresh": status_age_seconds is not None and status_age_seconds < 10,
         "BTC quorum met": btc_feed.get("quorum_met", False),
         "BTC divergence acceptable": (btc_feed.get("divergence_bps") or 0) < 10,
-        "Polymarket book fresh or idle": not polymarket_feed.get("stale", True) or polymarket_feed.get("idle", False),
+        "Polymarket book fresh or idle": (
+            not polymarket_feed.get("stale", True) or polymarket_feed.get("idle", False)
+        ),
         "No stale BTC trading condition": not btc_feed.get("stale", True),
         "No stale Polymarket trading condition": not polymarket_feed.get("stale", True),
     }

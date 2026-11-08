@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 from scripts.build_model_c_calibration import build_calibration
 
 
