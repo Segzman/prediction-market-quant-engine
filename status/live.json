@@ -12,31 +12,28 @@
     "records": 0
   },
   "net_pnl_usdc": {
-    "bootstrap95": [
-      -18.0251,
-      -0.8936
-    ],
-    "est_fees": 1.247,
-    "gross": -7.8745,
-    "net": -9.1216
+    "bootstrap95": null,
+    "est_fees": 0.1234,
+    "gross": 0.7998,
+    "net": 0.6764
   },
-  "paper_trades": 28,
-  "settled_trades": 28,
-  "updated_at": "2026-11-10T19:08:22Z",
+  "paper_trades": 3,
+  "settled_trades": 3,
+  "updated_at": "2026-11-10T21:48:41Z",
   "uptime": {
     "bot_up": true,
-    "heartbeat_age_seconds": 1.9,
-    "last_heartbeat_utc": "2026-11-10T19:08:20Z",
-    "observed_hours": 22.96,
-    "observed_since_utc": "2026-11-09T20:11:03Z"
+    "heartbeat_age_seconds": 1.0,
+    "last_heartbeat_utc": "2026-11-10T21:48:40Z",
+    "observed_hours": 0.06,
+    "observed_since_utc": "2026-11-10T21:45:06Z"
   },
   "win_rate": {
-    "rate": 0.5,
+    "rate": 1.0,
     "wilson95": [
-      0.3263,
-      0.6737
+      0.4385,
+      1.0
     ],
-    "wins": 14
+    "wins": 3
   },
-  "windows_observed": 25
+  "windows_observed": 2
 }
