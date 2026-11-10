@@ -2,12 +2,12 @@
 
 > **Paper trading only. No real money is at risk. This page makes no claim of edge.**
 
-Updated: 2026-11-10T18:07:51Z (every 15 minutes from the VM)
+Updated: 2026-11-10T18:22:53Z (every 15 minutes from the VM)
 
 | Metric | Value |
 | --- | --- |
-| Observed since | 2026-11-09T20:11:03Z (21.9 h) |
-| Last heartbeat | 2026-11-10T18:07:50Z (age 0.7 s) |
+| Observed since | 2026-11-09T20:11:03Z (22.2 h) |
+| Last heartbeat | 2026-11-10T18:22:52Z (age 1.4 s) |
 | Feeds healthy | yes |
 | Windows observed | 25 |
 | Paper trades | 28 |
