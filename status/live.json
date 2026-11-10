@@ -22,12 +22,12 @@
   },
   "paper_trades": 28,
   "settled_trades": 28,
-  "updated_at": "2026-11-10T18:22:53Z",
+  "updated_at": "2026-11-10T18:53:22Z",
   "uptime": {
     "bot_up": true,
-    "heartbeat_age_seconds": 1.4,
-    "last_heartbeat_utc": "2026-11-10T18:22:52Z",
-    "observed_hours": 22.2,
+    "heartbeat_age_seconds": 1.9,
+    "last_heartbeat_utc": "2026-11-10T18:53:20Z",
+    "observed_hours": 22.71,
     "observed_since_utc": "2026-11-09T20:11:03Z"
   },
   "win_rate": {
