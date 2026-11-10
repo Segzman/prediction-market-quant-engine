@@ -303,15 +303,30 @@ def scaled_net_profit_floor_usdc(spread_penalty_pctile: float) -> float:
     return MIN_NET_EXPECTED_PROFIT_USDC * (1.0 + 1.5 * pctile)
 
 
+CRYPTO_TAKER_FEE_RATE = 0.07  # docs.polymarket.com/trading/fees, crypto category
+
+
 def estimate_trade_fee_usdc(
-    *, asset: str, market_price: float, bet_size: float, fee_rate_bps: int = 0
+    *, asset: str, market_price: float, bet_size: float, fee_rate_bps: int = 0,
+    shares: float | None = None,
 ) -> float:
-    if bet_size <= 0 or market_price <= 0:
+    """Polymarket taker fee: shares * rate * p * (1 - p).
+
+    bet_size is USDC spent at market_price (shares = bet_size / market_price). Exits sell
+    shares bought at another price, so they pass shares explicitly.
+    """
+    if market_price <= 0 or market_price >= 1:
+        return 0.0
+    if shares is None:
+        if bet_size <= 0:
+            return 0.0
+        shares = bet_size / market_price
+    if shares <= 0:
         return 0.0
     if fee_rate_bps > 0:
-        return bet_size * (fee_rate_bps / 10_000)
+        return shares * market_price * (fee_rate_bps / 10_000)
     if asset.upper() in {"BTC", "ETH", "SOL", "XRP", "POL"}:
-        return bet_size * 0.072 * market_price * (1 - market_price)
+        return shares * CRYPTO_TAKER_FEE_RATE * market_price * (1 - market_price)
     return 0.0
 
 

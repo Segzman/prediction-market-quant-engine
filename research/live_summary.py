@@ -150,7 +150,8 @@ def build_summary(state: Path, now: float) -> dict:
         pnl = float(res["pnl"])
         amount = _num(trade.get("amount_usdc")) or 0.0
         price = _num(trade.get("price")) or 0.0
-        fee = estimate_crypto_taker_fee_usdc(price=price, usdc_notional=amount)
+        recorded = _num(res.get("fees_usdc"))
+        fee = recorded if recorded is not None else estimate_crypto_taker_fee_usdc(price=price, usdc_notional=amount)
         gross_values.append(pnl)
         net_values.append(pnl - fee)
         resolved_up = res.get("resolved_up")

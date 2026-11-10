@@ -39,3 +39,4 @@ research/jev_framing/cache/
 
 # Month-long Polymarket backtest raw caches (re-fetchable via research/month_backtest/fetch.py)
 research/month_backtest/cache/
+tape/

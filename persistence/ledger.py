@@ -143,6 +143,7 @@ class Ledger:
         closed_time: str | None = None,
         uma_resolution_status: str | None = None,
         feature_snapshot: dict | None = None,
+        fees_usdc: float | None = None,
     ) -> None:
         side = Direction(direction)
         won = (side == Direction.UP and resolved_up) or (
@@ -157,6 +158,8 @@ class Ledger:
             "resolved_up": resolved_up,
             "pnl": pnl,
         }
+        if fees_usdc is not None:
+            record["fees_usdc"] = fees_usdc
         if final_price is not None:
             record["final_price"] = final_price
         if price_to_beat is not None:
@@ -176,7 +179,9 @@ class Ledger:
         pnl: float,
         exit_price: float,
         reason: str,
+        fees_usdc: float | None = None,
     ) -> None:
+        """pnl is gross of fees; fees_usdc (entry + exit taker fees) when known."""
         record = {
             "type": "resolution",
             "ts": time.time(),
@@ -187,6 +192,8 @@ class Ledger:
             "final_price": exit_price,
             "uma_resolution_status": f"EARLY_EXIT_{reason}",
         }
+        if fees_usdc is not None:
+            record["fees_usdc"] = fees_usdc
         self._append(record)
 
     def record_cancellation(

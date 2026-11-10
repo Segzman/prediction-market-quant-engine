@@ -314,6 +314,10 @@ MODEL_C_CALIBRATION_FILE: Final[str] = os.getenv(
 )
 MODEL_C_MIN_BUCKET_SAMPLES: Final[int] = _get_int("MODEL_C_MIN_BUCKET_SAMPLES", 10)
 RUNTIME_STATUS_FILE: Final[str] = os.getenv("RUNTIME_STATUS_FILE", "runtime_status.json")
+# Market tape for backtests/training: one row per status tick. Empty string disables it.
+MARKET_TAPE_DIR: Final[str] = os.getenv(
+    "MARKET_TAPE_DIR", os.path.join(os.path.dirname(os.path.abspath(RUNTIME_STATUS_FILE)), "tape")
+)
 RUNTIME_STATUS_UPDATE_SECONDS: Final[float] = _get_float(
     "RUNTIME_STATUS_UPDATE_SECONDS", 2.0
 )

@@ -221,8 +221,9 @@ def test_build_report_estimates_crypto_taker_fee_when_fill_fee_missing():
 
     report = build_report(records)
 
-    assert report["C"]["estimated_fees"] == pytest.approx(0.1728)
-    assert report["C"]["net_pnl"] == pytest.approx(4.8272)
+    # docs.polymarket.com/trading/fees: 25 shares * 0.07 * 0.40 * 0.60
+    assert report["C"]["estimated_fees"] == pytest.approx(0.42)
+    assert report["C"]["net_pnl"] == pytest.approx(4.58)
     assert report["C"]["fee_estimate_trades"] == 1
     assert report["C"]["fee_fill_trades"] == 0
     assert report["C"]["avg_entry_price"] == 0.4
@@ -232,7 +233,7 @@ def test_build_fee_context_exposes_crypto_taker_assumption():
     context = build_fee_context()
 
     assert context["market_class"] == "crypto"
-    assert context["fee_rate"] == 0.072
+    assert context["fee_rate"] == 0.07
 
 
 def test_build_probability_path_report_compares_pooled_and_selected_paths():

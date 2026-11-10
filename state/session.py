@@ -40,8 +40,9 @@ class TradeRecord:
     resolved: bool = False
     status: str = "OPEN"
     resolved_up: bool | None = None
-    pnl: float = 0.0
-    fee_usdc: float = 0.0
+    pnl: float = 0.0  # net of entry and exit fees once resolved
+    fee_usdc: float = 0.0  # entry taker fee
+    partial_pnl: float = 0.0  # exit-fee-net P&L already realized by partial closes
     entry_regime: str = ""
 
 
@@ -427,13 +428,15 @@ class BotState:
                 if won
                 else -trade.amount_usdc
             )
-            pnl = gross_pnl - trade.fee_usdc
+            settled = gross_pnl - trade.fee_usdc  # settlement redeems without a fee
+            pnl = settled + trade.partial_pnl  # partial closes were realized earlier
+            won = pnl > 0
             trade.resolved = True
             trade.status = "WIN" if won else "LOSS"
             trade.resolved_up = resolved_up
             trade.pnl = pnl
-            self.daily_pnl += pnl
-            self.realized_pnl += pnl
+            self.daily_pnl += settled
+            self.realized_pnl += settled
 
             if trade.role == "HEDGE":
                 return
@@ -448,21 +451,32 @@ class BotState:
                 self.consecutive_losses += 1
             return
 
-    def record_early_exit(self, order_id: str, pnl: float, won: bool) -> None:
+    def record_partial_exit(self, order_id: str, pnl: float) -> None:
+        """Remember P&L from a partial close (the caller already added it to realized_pnl)."""
+        for trade in self.trade_history:
+            if trade.order_id == order_id and not trade.resolved:
+                trade.partial_pnl += pnl
+                return
+
+    def record_early_exit(self, order_id: str, position_pnl: float) -> None:
+        """Close the trade record with the position's total exit-fee-net P&L.
+
+        The caller already added each close's P&L to realized_pnl; only the entry fee is
+        charged here, so the bankroll and trade.pnl stay equal.
+        """
         for trade in self.trade_history:
             if trade.order_id != order_id:
                 continue
             if trade.resolved:
                 return
-            
+
+            trade.pnl = position_pnl - trade.fee_usdc
+            won = trade.pnl > 0
             trade.resolved = True
             trade.status = "WIN" if won else "LOSS"
-            trade.pnl = pnl
-            
-            # Note: We do NOT increment daily_pnl/realized_pnl here because
-            # check_position_exits() already does it via state.daily_pnl += realized_pnl.
-            # We just need to update the trade record status.
-            
+            self.daily_pnl -= trade.fee_usdc
+            self.realized_pnl -= trade.fee_usdc
+
             if trade.role == "HEDGE":
                 return
             

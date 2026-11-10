@@ -7,7 +7,7 @@ import statistics
 from collections import defaultdict
 from pathlib import Path
 
-CRYPTO_TAKER_FEE_RATE = 0.072
+CRYPTO_TAKER_FEE_RATE = 0.07  # docs.polymarket.com/trading/fees
 CRYPTO_TAKER_FEE_EXPONENT = 1.0
 CRYPTO_ASSETS = {"BTC", "ETH", "SOL", "XRP", "POL"}
 FEE_DOC_URL = "https://docs.polymarket.com/trading/fees"
@@ -48,7 +48,7 @@ def estimate_crypto_taker_fee_usdc(*, price: float, usdc_notional: float) -> flo
     if price <= 0 or price >= 1 or usdc_notional <= 0:
         return 0.0
     shares = usdc_notional / price
-    return shares * price * CRYPTO_TAKER_FEE_RATE * (
+    return shares * CRYPTO_TAKER_FEE_RATE * (
         price * (1 - price)
     ) ** CRYPTO_TAKER_FEE_EXPONENT
 
