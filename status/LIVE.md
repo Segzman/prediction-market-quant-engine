@@ -2,14 +2,14 @@
 
 > **Paper trading only. No real money is at risk. This page makes no claim of edge.**
 
-Updated: 2026-11-10T21:48:41Z (every 15 minutes from the VM)
+Updated: 2026-11-10T21:50:45Z (every 15 minutes from the VM)
 
 | Metric | Value |
 | --- | --- |
 | Observed since | 2026-11-10T21:45:06Z (0.1 h) |
-| Last heartbeat | 2026-11-10T21:48:40Z (age 1.0 s) |
+| Last heartbeat | 2026-11-10T21:50:44Z (age 1.0 s) |
 | Feeds healthy | yes |
-| Windows observed | 2 |
+| Windows observed | 3 |
 | Paper trades | 3 |
 | Settled trades | 3 |
 | Win rate | 1.0000 (Wilson 95%: 0.4385 to 1.0000) |
