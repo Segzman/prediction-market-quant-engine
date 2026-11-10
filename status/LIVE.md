@@ -2,19 +2,19 @@
 
 > **Paper trading only. No real money is at risk. This page makes no claim of edge.**
 
-Updated: 2026-11-10T23:21:02Z (every 15 minutes from the VM)
+Updated: 2026-11-10T23:36:06Z (every 15 minutes from the VM)
 
 | Metric | Value |
 | --- | --- |
-| Observed since | 2026-11-10T21:45:06Z (1.6 h) |
-| Last heartbeat | 2026-11-10T23:21:01Z (age 0.9 s) |
+| Observed since | 2026-11-10T21:45:06Z (1.9 h) |
+| Last heartbeat | 2026-11-10T23:36:04Z (age 1.8 s) |
 | Feeds healthy | yes |
-| Windows observed | 21 |
-| Paper trades | 74 |
-| Settled trades | 74 |
-| Win rate | 0.6081 (Wilson 95%: 0.4942 to 0.7114) |
-| Net PnL, paper (USDC) | 4.3624 after est. fees (gross 7.5958) |
-| Net PnL 95% bootstrap (USDC) | -4.1729 to 12.7933 |
+| Windows observed | 24 |
+| Paper trades | 89 |
+| Settled trades | 89 |
+| Win rate | 0.5843 (Wilson 95%: 0.4805 to 0.6811) |
+| Net PnL, paper (USDC) | 1.4331 after est. fees (gross 5.3246) |
+| Net PnL 95% bootstrap (USDC) | -8.1792 to 11.0155 |
 | Brier, model vs market (0 settled) | n/a vs n/a |
 | JEV calls / latency p50 | 0 / n/a ms |
 
