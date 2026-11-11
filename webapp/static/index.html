@@ -358,7 +358,8 @@ function renderTrack(track, engineScores) {
   // Bankroll row
   const bkAvail = bk.available != null ? `$${bk.available.toFixed(2)}` : "—";
   const bkCurrent = bk.current != null ? `$${bk.current.toFixed(2)}` : "—";
-  const bkPnl = bk.current != null && bk.starting != null ? bk.current - bk.starting : null;
+  const bkPnl = bk.realized_pnl != null ? bk.realized_pnl
+    : bk.current != null && bk.starting != null ? bk.current - bk.starting : null;
   const bkPnlCls = (bkPnl || 0) >= 0 ? "green" : "red";
 
   // Signal

@@ -1238,13 +1238,16 @@ def build_model_tracks(
     return tracks
 
 
-def restore_track_state(state: BotState, ledger: Ledger, asset: str, *, now: float | None = None) -> dict:
+def restore_track_state(
+    state: BotState, ledger: Ledger, asset: str, *, now: float | None = None, since: float = 0.0
+) -> dict:
     """Rebuild a track's bankroll and trade history from its ledger, so a restart keeps progress.
 
     P&L is net of fees: rows written since the fee fix carry fees_usdc (entry + exit); older rows
     get the entry fee re-estimated with the docs formula (their exit fees were never logged).
-    Trades with no terminal row lost their in-memory position on restart, so they are kept as
-    ORPHANED with zero P&L instead of locking bankroll forever.
+    Trades with no terminal row lost their in-memory position on restart; they stay open
+    and the resolution sweep settles them like any position held to expiry. Trades before `since`
+    (PMQE_SESSION_START) belong to an earlier paper session and stay in the ledger only.
     """
     now = time.time() if now is None else now
     today = datetime.fromtimestamp(now, UTC).date()
@@ -1253,8 +1256,8 @@ def restore_track_state(state: BotState, ledger: Ledger, asset: str, *, now: flo
         terminal.setdefault(row.get("order_id"), row)
     for row in ledger.get_all_cancellations():
         terminal.setdefault(row.get("order_id"), {**row, "_cancelled": True})
-    counts = {"trades": 0, "resolved": 0, "cancelled": 0, "orphaned": 0}
-    rows = [t for t in ledger.get_all_trades() if t.get("order_id")]
+    counts = {"trades": 0, "resolved": 0, "cancelled": 0, "pending": 0}
+    rows = [t for t in ledger.get_all_trades() if t.get("order_id") and (t.get("ts") or 0) >= since]
     for t in sorted(rows, key=lambda r: r.get("ts") or 0):
         amount, price = float(t.get("amount_usdc") or 0.0), float(t.get("price") or 0.0)
         rec = TradeRecord(
@@ -1270,12 +1273,15 @@ def restore_track_state(state: BotState, ledger: Ledger, asset: str, *, now: flo
             if datetime.fromtimestamp(rec.ts, UTC).date() == today:
                 state.daily_trades += 1
         end = terminal.get(rec.order_id)
-        rec.resolved = True
-        rec.resolved_ts = float((end or {}).get("ts") or rec.ts)
         if end is None:
-            rec.status = "ORPHANED"
-            counts["orphaned"] += 1
-        elif end.get("_cancelled"):
+            # Position lost on restart: leave it open so the sweep settles it on the
+            # official outcome (booking it as $0 hid real wins and losses).
+            counts["pending"] += 1
+            state.trade_history.append(rec)
+            continue
+        rec.resolved = True
+        rec.resolved_ts = float(end.get("ts") or rec.ts)
+        if end.get("_cancelled"):
             rec.status = "CANCELLED"
             counts["cancelled"] += 1
         else:
@@ -3745,7 +3751,10 @@ async def main() -> None:
         )
         if os.environ.get("PMQE_RESTORE_FROM_LEDGER", "1") != "0":
             for track in tracks:
-                counts = restore_track_state(track.state, track.ledger, args.asset)
+                counts = restore_track_state(
+                    track.state, track.ledger, args.asset,
+                    since=float(os.environ.get("PMQE_SESSION_START") or 0),
+                )
                 LOGGER.info(
                     "[%s] restored from ledger: %s | bankroll $%.2f",
                     track.name, counts, track.state.current_bankroll_usdc(),

@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import random
 import statistics
 import sys
@@ -98,6 +99,7 @@ def _load_ledgers(
     resolutions: dict[tuple[str, str], dict] = {}
     windows: set[int] = set()
     stamps: list[float] = []
+    since = float(os.environ.get("PMQE_SESSION_START") or 0)  # same paper-session cut as the bot
     for path in sorted((state / "ledgers").glob("*.jsonl")):
         for rec in _read_jsonl(path):
             kind = rec.get("type")
@@ -111,7 +113,7 @@ def _load_ledgers(
             if not order_id:
                 continue
             key = (path.name, str(order_id))
-            if kind == "trade":
+            if kind == "trade" and (ts or 0) >= since:
                 trades[key] = rec
             elif kind == "resolution":
                 resolutions[key] = rec
@@ -134,6 +136,15 @@ def _iso(epoch: float | None) -> str | None:
     if epoch is None:
         return None
     return datetime.fromtimestamp(epoch, tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+# Ledger files keep legacy track ids; all three trade LATE_CONVICTION with a different
+# probability engine (labels match webapp/static/index.html TRACK_LABELS).
+MODEL_LABELS = {
+    "conviction": "A · Conviction (momentum)",
+    "mispricing": "B · Conviction (brownian+micro)",
+    "both": "C · Conviction (calibrated)",
+}
 
 
 def _track_summary(net_values: list[float], trades: int) -> dict:
@@ -247,7 +258,8 @@ def build_summary(state: Path, now: float) -> dict:
             "bootstrap95": pnl_ci,
         },
         "tracks": {
-            name: _track_summary(by_track[name], per_track[name]) for name in sorted(by_track)
+            MODEL_LABELS.get(name, name): _track_summary(by_track[name], per_track[name])
+            for name in sorted(by_track, key=lambda n: MODEL_LABELS.get(n, n))
         },
         "brier": {
             "n": len(briers_model),
@@ -353,7 +365,7 @@ def render_markdown(summary: dict) -> str:
             "| Model | Trades (settled) | Win rate (Wilson 95%) | Net PnL (USDC) | Avg / trade | Net 95% bootstrap |",
             "| --- | --- | --- | --- | --- | --- |",
             *(
-                f"| {name.upper()} | {t['paper_trades']} ({t['settled_trades']}) | {_fmt(t['win_rate'])} "
+                f"| {name} | {t['paper_trades']} ({t['settled_trades']}) | {_fmt(t['win_rate'])} "
                 f"({_fmt(t['wilson95'][0]) + ' to ' + _fmt(t['wilson95'][1]) if t['wilson95'] else 'n/a'}) | "
                 f"{_fmt(t['net_pnl_usdc'])} | {_fmt(t['avg_net_per_trade'])} | "
                 f"{(_fmt(t['bootstrap95'][0]) + ' to ' + _fmt(t['bootstrap95'][1])) if t['bootstrap95'] else 'needs 20+ settled'} |"

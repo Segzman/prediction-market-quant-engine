@@ -81,10 +81,10 @@ def test_restore_track_state_rebuilds_bankroll_from_ledger(tmp_path):
     by = {t.order_id: t for t in state.trade_history}
     assert by["s"].pnl == pytest.approx(1.0 - entry_fee) and by["s"].status == "WIN"
     assert by["e"].pnl == pytest.approx(-0.70) and by["e"].status == "LOSS"
-    assert by["c"].status == "CANCELLED" and by["o"].status == "ORPHANED"
-    assert counts == {"trades": 4, "resolved": 2, "cancelled": 1, "orphaned": 1}
+    assert by["c"].status == "CANCELLED" and by["o"].status == "OPEN" and not by["o"].resolved
+    assert counts == {"trades": 4, "resolved": 2, "cancelled": 1, "pending": 1}
     assert state.realized_pnl == pytest.approx(1.0 - entry_fee - 0.70)
-    assert state.pending_exposure_usdc() == 0.0  # nothing left locking bankroll
+    assert state.pending_exposure_usdc() == 4.0  # only the pending trade, until the sweep settles it
 
 
 def test_market_tape_writes_one_row_per_tick_by_utc_day(tmp_path):

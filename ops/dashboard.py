@@ -596,6 +596,7 @@ def _build_runtime_status_multi_track(
                     "available": bankroll_available,
                     "current": bankroll_current,
                     "starting": bankroll_starting,
+                    "realized_pnl": round(state.realized_pnl, 4),  # unclamped; current floors at 0
                 },
                 "all_trades": all_trades_payload,
                 "pnl_history": _pnl_curve(resolved),

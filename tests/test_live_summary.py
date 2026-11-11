@@ -227,9 +227,9 @@ def test_summary_splits_models(state):
 
     shutil.copy(state / "ledgers" / "both.jsonl", state / "ledgers" / "conviction.jsonl")
     summary = build_summary(state, NOW)
-    both, conv = summary["tracks"]["both"], summary["tracks"]["conviction"]
+    both, conv = summary["tracks"]["C · Conviction (calibrated)"], summary["tracks"]["A · Conviction (momentum)"]
     assert both == conv and both["paper_trades"] == 3 and both["settled_trades"] == 2
     assert summary["settled_trades"] == 4
     assert summary["net_pnl_usdc"]["net"] == pytest.approx(2 * both["net_pnl_usdc"], abs=1e-3)
     md = render_markdown(summary)
-    assert "## By model" in md and "| BOTH |" in md and "| CONVICTION |" in md
+    assert "## By model" in md and "| C · Conviction (calibrated) |" in md and "| A · Conviction (momentum) |" in md
