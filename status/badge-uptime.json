@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "label": "paper uptime",
-  "message": "21h observed",
-  "color": "brightgreen"
+  "message": "down",
+  "color": "red"
 }
