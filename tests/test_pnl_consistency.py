@@ -143,3 +143,17 @@ def test_net_loss_with_positive_gross_counts_as_loss():
 
     row = {"pnl": 0.05, "fees_usdc": 0.1099}  # sold 5 shares 0.80 -> 0.81
     assert net_pnl(row) < 0
+
+
+def test_entry_gate_prices_expected_exit_fee():
+    from strategy.entry_helpers import early_exit_share
+
+    state = BotState()
+    assert early_exit_share(state) == 1.0  # no history: price the full round trip
+    for i in range(10):
+        _entry(state, f"s{i}")
+        if i < 4:
+            state.record_resolution(f"s{i}", resolved_up=True)      # settled
+        else:
+            state.record_early_exit(f"s{i}", position_pnl=0.10)     # sold early
+    assert early_exit_share(state) == pytest.approx(0.6)

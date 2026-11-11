@@ -330,6 +330,18 @@ def estimate_trade_fee_usdc(
     return 0.0
 
 
+def early_exit_share(state: BotState, *, lookback: int = 50, min_trades: int = 10) -> float:
+    """Share of recent resolved trades that closed before settlement (and so paid a sell fee).
+
+    Early exits leave resolved_up as None; settlements set it. With too little history,
+    assume every trade exits early, which prices the full round-trip fee.
+    """
+    done = [t for t in state.trade_history if t.resolved and t.status in ("WIN", "LOSS")][-lookback:]
+    if len(done) < min_trades:
+        return 1.0
+    return sum(1 for t in done if t.resolved_up is None) / len(done)
+
+
 def estimate_expected_profit_usdc(signal: Signal, bet_size: float) -> float:
     if bet_size <= 0 or MAX_BET_USDC <= 0:
         return 0.0
@@ -382,11 +394,14 @@ def evaluate_trade_economics(
         return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
     for _ in range(20):
         gross_expected_profit = estimate_expected_profit_usdc(signal, candidate_bet)
-        estimated_fee = estimate_trade_fee_usdc(
+        entry_fee = estimate_trade_fee_usdc(
             asset=asset,
             market_price=signal.market_price,
             bet_size=candidate_bet,
         )
+        # Expected sell fee: same shares, exit price unknown, so price it at entry (fee is
+        # symmetric around 0.50), weighted by how often this track exits before settlement.
+        estimated_fee = entry_fee * (1.0 + early_exit_share(state))
         spread_penalty = estimate_spread_penalty_usdc(
             bet_size=candidate_bet,
             signal_market_price=signal.market_price,
