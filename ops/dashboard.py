@@ -397,6 +397,15 @@ def _build_runtime_status_legacy(runtimes: list[ModelRuntime]) -> dict:
     }
 
 
+def _pnl_curve(resolved: list) -> list[float]:
+    """Cumulative net P&L after each resolved trade, oldest first (starts at 0)."""
+    curve, total = [0.0], 0.0
+    for t in sorted(resolved, key=lambda t: t.resolved_ts or t.ts):
+        total += t.pnl
+        curve.append(round(total, 4))
+    return curve
+
+
 def build_runtime_status(
     tracks_or_runtimes,
     shared_state=None,
@@ -453,7 +462,12 @@ def _build_runtime_status_multi_track(
         active_track_name = "NONE"
     mode = "LIVE" if any(not t.orderer.dry_run for t in active_tracks) else "DRY_RUN"
 
-    total_pnl = round(sum(t.pnl_history[-1] if t.pnl_history else 0.0 for t in tracks), 4)
+    # P&L curve, total and win stats all use resolved trades' net-of-fee P&L. The bankroll also
+    # includes partial closes of still-open positions, so it can lead the total until they resolve.
+    total_pnl = round(sum(
+        t.pnl for tr in tracks for t in getattr(tr.state, "trade_history", [])
+        if t.resolved and t.status in ("WIN", "LOSS")
+    ), 4)
     btc_price_age_seconds = shared_state.btc_price_age_seconds()
     book_age_seconds = shared_state.polymarket_book_age_seconds()
 
@@ -516,7 +530,7 @@ def _build_runtime_status_multi_track(
 
         # Win stats from trade_history
         trade_history = getattr(state, "trade_history", [])
-        resolved = [t for t in trade_history if t.resolved]
+        resolved = [t for t in trade_history if t.resolved and t.status in ("WIN", "LOSS")]
         wins = [t for t in resolved if t.pnl > 0]
         losses = [t for t in resolved if t.pnl < 0]
         win_rate = round(len(wins) / len(resolved), 3) if resolved else 0.0
@@ -584,7 +598,7 @@ def _build_runtime_status_multi_track(
                     "starting": bankroll_starting,
                 },
                 "all_trades": all_trades_payload,
-                "pnl_history": list(track.pnl_history),
+                "pnl_history": _pnl_curve(resolved),
             }
         )
 

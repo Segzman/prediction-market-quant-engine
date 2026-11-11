@@ -10,6 +10,18 @@ from config import LEDGER_FILE
 from state.types import Direction
 
 
+def net_pnl(resolution: dict) -> float:
+    """Net P&L of a terminal row: gross pnl minus logged fees plus earlier partial closes.
+
+    Rows written before fees were logged carry no fees_usdc and count as gross.
+    """
+    return (
+        float(resolution.get("pnl") or 0.0)
+        - float(resolution.get("fees_usdc") or 0.0)
+        + float(resolution.get("partial_net_usdc") or 0.0)
+    )
+
+
 class Ledger:
     def __init__(self, filepath: str = LEDGER_FILE):
         self.filepath = filepath
@@ -143,6 +155,8 @@ class Ledger:
         closed_time: str | None = None,
         uma_resolution_status: str | None = None,
         feature_snapshot: dict | None = None,
+        fees_usdc: float | None = None,
+        partial_net_usdc: float = 0.0,
     ) -> None:
         side = Direction(direction)
         won = (side == Direction.UP and resolved_up) or (
@@ -157,6 +171,10 @@ class Ledger:
             "resolved_up": resolved_up,
             "pnl": pnl,
         }
+        if fees_usdc is not None:
+            record["fees_usdc"] = fees_usdc
+        if partial_net_usdc:
+            record["partial_net_usdc"] = partial_net_usdc  # earlier partial closes, already net of fees
         if final_price is not None:
             record["final_price"] = final_price
         if price_to_beat is not None:
@@ -176,7 +194,9 @@ class Ledger:
         pnl: float,
         exit_price: float,
         reason: str,
+        fees_usdc: float | None = None,
     ) -> None:
+        """pnl is gross of fees; fees_usdc (entry + exit taker fees) when known."""
         record = {
             "type": "resolution",
             "ts": time.time(),
@@ -187,6 +207,8 @@ class Ledger:
             "final_price": exit_price,
             "uma_resolution_status": f"EARLY_EXIT_{reason}",
         }
+        if fees_usdc is not None:
+            record["fees_usdc"] = fees_usdc
         self._append(record)
 
     def record_cancellation(
@@ -494,9 +516,9 @@ class Ledger:
             if cancellation.get("order_id") in primary_trade_ids
         ]
 
-        wins = sum(1 for resolution in primary_resolutions if resolution["pnl"] > 0)
-        losses = sum(1 for resolution in primary_resolutions if resolution["pnl"] <= 0)
-        total_pnl = sum(resolution["pnl"] for resolution in daily_resolutions)
+        wins = sum(1 for resolution in primary_resolutions if net_pnl(resolution) > 0)
+        losses = sum(1 for resolution in primary_resolutions if net_pnl(resolution) <= 0)
+        total_pnl = sum(net_pnl(resolution) for resolution in daily_resolutions)
         avg_edge = (
             sum(trade["edge"] for trade in primary_trades) / len(primary_trades)
             if primary_trades
@@ -532,7 +554,7 @@ class Ledger:
             model = trade["model"]
             bucket = performance.setdefault(model, {"trades": 0, "wins": 0})
             bucket["trades"] += 1
-            if resolution["pnl"] > 0:
+            if net_pnl(resolution) > 0:
                 bucket["wins"] += 1
 
         return {

@@ -6,12 +6,14 @@ import copy
 import hashlib
 import json
 import logging
+import os
 import signal
 import statistics
 import sys
 import time
 from collections import deque
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 
 from cli import CliArgs, parse_args, parse_model_names  # noqa: F401 (CliArgs, parse_model_names re-exported)
@@ -63,6 +65,7 @@ from config import (
     LIVE_STARTUP_CANCEL_ALL,
     LOG_LEVEL,
     LOW_CONVICTION_HARD_TIME_EXIT,
+    MARKET_TAPE_DIR,
     MAX_BET_USDC,
     MAX_POSITIONS_PER_WINDOW,
     MIN_BET_USDC,
@@ -158,12 +161,14 @@ from ops.resolution import (
     wait_for_market_resolution as _wait_for_market_resolution,
 )
 from persistence.ledger import Ledger
+from persistence.tape import MarketTape, tape_row
 from risk.guard import DailyGuard
 from risk.sizing import get_bet_size, plan_position_sizes
 from sim.demo import DemoClient
 from sim.feed import SimulatedFeed
 from state import BotState, ExitReason, Position, WindowPhase, WindowState
-from state.session import apply_price
+from state.position import PositionStatus
+from state.session import TradeRecord, apply_price
 from state.track import TRACK_COLORS, TRACK_CSS_COLORS, ModelTrack
 from strategy.entry_helpers import (
     BookAssessment,
@@ -479,6 +484,24 @@ def create_position_from_trade(
     )
 
 
+def _record_full_exit(track: ModelTrack, position: Position, window_end_ts: int, exit_price: float, reason: str) -> None:
+    """Final close of a position: ledger gets gross P&L plus all fees, state gets net P&L.
+
+    position.pnl_usdc already sums every partial close net of exit fees; the entry fee
+    lives on the trade record and is charged in state.record_early_exit.
+    """
+    entry_fee = next((t.fee_usdc for t in track.state.trade_history if t.order_id == position.order_id), 0.0)
+    track.ledger.record_early_exit(
+        order_id=position.order_id,
+        window_end_ts=window_end_ts,
+        pnl=position.pnl_usdc + position.fee_usdc,
+        exit_price=exit_price,
+        reason=reason,
+        fees_usdc=position.fee_usdc + entry_fee,
+    )
+    track.state.record_early_exit(order_id=position.order_id, position_pnl=position.pnl_usdc)
+
+
 async def check_position_exits(
     track: ModelTrack,
     *,
@@ -700,9 +723,12 @@ async def check_position_exits(
                     or exit_price
                     or position.entry_price
                 )
-                closed_notional_usdc = _filled_amount_usdc(
-                    filled_exit_result,
-                    position.remaining_size_usdc,
+                # A SELL fill reports shares; the cost basis being closed is shares * entry price
+                # (shares * exit price would be the sale proceeds).
+                closed_notional_usdc = (
+                    round(filled_exit_result.filled_size * position.entry_price, 4)
+                    if filled_exit_result.filled_size > 0 and position.entry_price > 0
+                    else position.remaining_size_usdc
                 )
                 close_fraction = min(
                     1.0,
@@ -729,6 +755,7 @@ async def check_position_exits(
                 asset=asset,
                 market_price=exit_price,
                 bet_size=closed_notional_usdc,
+                shares=closed_notional_usdc / position.entry_price if position.entry_price > 0 else 0.0,
             )
             realized_pnl = position.close(
                 exit_price=exit_price,
@@ -740,20 +767,11 @@ async def check_position_exits(
 
             track.state.realized_pnl += realized_pnl
             track.state.daily_pnl += realized_pnl
-            if close_fraction >= 0.999:
-                track.ledger.record_early_exit(
-                    order_id=position.order_id,
-                    window_end_ts=window.end_ts,
-                    pnl=realized_pnl + fee_usdc,
-                    exit_price=exit_price,
-                    reason=exit_reason.value,
-                )
-                track.state.record_early_exit(
-                    order_id=position.order_id,
-                    pnl=realized_pnl,
-                    won=realized_pnl > 0,
-                )
+            fully_closed = close_fraction >= 0.999 or position.status == PositionStatus.CLOSED
+            if fully_closed:
+                _record_full_exit(track, position, window.end_ts, exit_price, exit_reason.value)
             else:
+                track.state.record_partial_exit(position.order_id, realized_pnl)
                 track.state.update_trade_amount(
                     position.order_id,
                     position.remaining_size_usdc,
@@ -768,7 +786,7 @@ async def check_position_exits(
                     f"{position.direction} @ {exit_price:.3f}"
                 )
 
-            if close_fraction >= 0.999:
+            if close_fraction >= 0.999 or position.status == PositionStatus.CLOSED:
                 closed_positions.append(position)
 
         except Exception as e:
@@ -1058,8 +1076,11 @@ def should_enter_on_waiting_conviction(
     )
 
 
-def estimate_trade_fee_usdc(*, asset: str, market_price: float, bet_size: float, fee_rate_bps: int = 0) -> float:
+def estimate_trade_fee_usdc(
+    *, asset: str, market_price: float, bet_size: float, fee_rate_bps: int = 0, shares: float | None = None
+) -> float:
     return _estimate_trade_fee_usdc(
+        shares=shares,
         asset=asset,
         market_price=market_price,
         bet_size=bet_size,
@@ -1215,6 +1236,72 @@ def build_model_tracks(
             active=active,
         ))
     return tracks
+
+
+def restore_track_state(state: BotState, ledger: Ledger, asset: str, *, now: float | None = None) -> dict:
+    """Rebuild a track's bankroll and trade history from its ledger, so a restart keeps progress.
+
+    P&L is net of fees: rows written since the fee fix carry fees_usdc (entry + exit); older rows
+    get the entry fee re-estimated with the docs formula (their exit fees were never logged).
+    Trades with no terminal row lost their in-memory position on restart, so they are kept as
+    ORPHANED with zero P&L instead of locking bankroll forever.
+    """
+    now = time.time() if now is None else now
+    today = datetime.fromtimestamp(now, UTC).date()
+    terminal: dict[str, dict] = {}
+    for row in ledger.get_all_resolutions():
+        terminal.setdefault(row.get("order_id"), row)
+    for row in ledger.get_all_cancellations():
+        terminal.setdefault(row.get("order_id"), {**row, "_cancelled": True})
+    counts = {"trades": 0, "resolved": 0, "cancelled": 0, "orphaned": 0}
+    rows = [t for t in ledger.get_all_trades() if t.get("order_id")]
+    for t in sorted(rows, key=lambda r: r.get("ts") or 0):
+        amount, price = float(t.get("amount_usdc") or 0.0), float(t.get("price") or 0.0)
+        rec = TradeRecord(
+            ts=float(t.get("ts") or 0.0), window_end_ts=int(t.get("window_end_ts") or 0),
+            direction=str(t.get("direction") or "UP"), amount_usdc=amount, price=price,
+            edge=float(t.get("edge") or 0.0), model=str(t.get("model") or ""), order_id=t["order_id"],
+            dry_run=bool(t.get("dry_run", True)), role=str(t.get("role") or "PRIMARY"),
+        )
+        rec.fee_usdc = estimate_trade_fee_usdc(asset=t.get("asset") or asset, market_price=price, bet_size=amount)
+        counts["trades"] += 1
+        if rec.role != "HEDGE":  # record_trade only counts primaries
+            state.total_trades += 1
+            if datetime.fromtimestamp(rec.ts, UTC).date() == today:
+                state.daily_trades += 1
+        end = terminal.get(rec.order_id)
+        rec.resolved = True
+        rec.resolved_ts = float((end or {}).get("ts") or rec.ts)
+        if end is None:
+            rec.status = "ORPHANED"
+            counts["orphaned"] += 1
+        elif end.get("_cancelled"):
+            rec.status = "CANCELLED"
+            counts["cancelled"] += 1
+        else:
+            fees = end.get("fees_usdc")
+            rec.pnl = (
+                float(end.get("pnl") or 0.0)
+                - (float(fees) if fees is not None else rec.fee_usdc)
+                + float(end.get("partial_net_usdc") or 0.0)
+            )
+            rec.status = "WIN" if rec.pnl > 0 else "LOSS"
+            rec.resolved_up = end.get("resolved_up")
+            state.realized_pnl += rec.pnl
+            if datetime.fromtimestamp(float(end.get("ts") or rec.ts), UTC).date() == today:
+                state.daily_pnl += rec.pnl
+            counts["resolved"] += 1
+            if rec.role != "HEDGE":
+                if rec.pnl > 0:
+                    state.wins += 1
+                    state.consecutive_wins += 1
+                    state.consecutive_losses = 0
+                else:
+                    state.losses += 1
+                    state.consecutive_losses += 1
+                    state.consecutive_wins = 0
+        state.trade_history.append(rec)
+    return counts
 
 
 def compute_all_engine_scores(
@@ -1446,15 +1533,21 @@ async def runtime_status_loop(
     shared_state: BotState | None = None,
     engine_scores_ref=None,
 ) -> None:
-    """Write status JSON on interval.
+    """Write status JSON on interval, and a market-tape row alongside it.
 
     Supports legacy (list[ModelRuntime], path) and new (list[ModelTrack], shared_state) signatures.
     """
+    tape = MarketTape(MARKET_TAPE_DIR) if MARKET_TAPE_DIR and shared_state is not None else None
     while True:
         if shared_state is not None:
             scores = engine_scores_ref() if callable(engine_scores_ref) else (engine_scores_ref or {})
             payload = build_runtime_status(runtimes_or_tracks, shared_state, scores)
             await asyncio.to_thread(write_runtime_status_file, payload, path)
+            if tape is not None:
+                try:
+                    await asyncio.to_thread(tape.append, tape_row(payload, shared_state))
+                except Exception as exc:  # the tape must never stop the bot
+                    LOGGER.warning("market tape write failed: %s", exc)
         else:
             await asyncio.to_thread(write_runtime_status_file, runtimes_or_tracks, path)
         await asyncio.sleep(interval)
@@ -2719,6 +2812,10 @@ async def submit_trade(
         role=role,
         entry_regime=getattr(signal, "entry_regime", ""),
     )
+    track.state.record_fee(
+        fill_result.order_id,
+        estimate_trade_fee_usdc(asset=asset, market_price=filled_price, bet_size=filled_amount_usdc),
+    )
     track.state.last_trade_high_conviction = signal.market_price >= HIGH_CONVICTION_ENTRY_THRESHOLD
     if track.state.current_window is not None and fill_result.order_id:
         position = create_position_from_trade(
@@ -2814,6 +2911,8 @@ async def resolve_submitted_trades(
             price_to_beat=resolution.get("price_to_beat"),
             closed_time=resolution.get("closed_time"),
             uma_resolution_status=resolution.get("uma_resolution_status"),
+            fees_usdc=next((t.fee_usdc for t in state.trade_history if t.order_id == trade.order_id), None),
+            partial_net_usdc=next((t.partial_pnl for t in state.trade_history if t.order_id == trade.order_id), 0.0),
         )
         state.record_resolution(trade.order_id, resolved_up)
 
@@ -2917,7 +3016,8 @@ async def trading_loop(
                         fee_usdc = estimate_trade_fee_usdc(
                             asset=asset,
                             market_price=current_price,
-                            bet_size=pos.size_usdc,
+                            bet_size=pos.remaining_size_usdc,
+                            shares=pos.remaining_size_usdc / pos.entry_price if pos.entry_price > 0 else 0.0,
                         )
                         realized_pnl = pos.close(
                             exit_price=current_price,
@@ -2927,18 +3027,7 @@ async def trading_loop(
                         )
                         track.state.realized_pnl += realized_pnl
                         track.state.daily_pnl += realized_pnl
-                        track.ledger.record_early_exit(
-                            order_id=pos.order_id,
-                            window_end_ts=track_window.end_ts,
-                            pnl=realized_pnl + fee_usdc,
-                            exit_price=current_price,
-                            reason="WINDOW_CLOSE",
-                        )
-                        track.state.record_early_exit(
-                            order_id=pos.order_id,
-                            pnl=realized_pnl,
-                            won=realized_pnl > 0,
-                        )
+                        _record_full_exit(track, pos, track_window.end_ts, current_price, "WINDOW_CLOSE")
                         if track.stats is not None:
                             track.stats.note(f"Window close exit | {pos.direction} | PnL: ${realized_pnl:+.2f}")
                         LOGGER.info(
@@ -3690,6 +3779,13 @@ async def main() -> None:
             initial_price_updated_ts=initial_price_updated_ts,
             starting_bankroll=starting_bankroll,
         )
+        if os.environ.get("PMQE_RESTORE_FROM_LEDGER", "1") != "0":
+            for track in tracks:
+                counts = restore_track_state(track.state, track.ledger, args.asset)
+                LOGGER.info(
+                    "[%s] restored from ledger: %s | bankroll $%.2f",
+                    track.name, counts, track.state.current_bankroll_usdc(),
+                )
         shared_state = BotState(
             btc_price=initial_price,
             btc_price_updated_ts=initial_price_updated_ts,

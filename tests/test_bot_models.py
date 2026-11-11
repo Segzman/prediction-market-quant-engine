@@ -784,8 +784,11 @@ def test_refresh_window_books_returns_none_on_fetch_error():
 
 
 def test_estimate_trade_fee_usdc_uses_crypto_fallback():
+    # docs.polymarket.com/trading/fees: shares * 0.07 * p * (1 - p); $10 at 0.40 = 25 shares
     fee = estimate_trade_fee_usdc(asset="BTC", market_price=0.40, bet_size=10.0)
-    assert fee == pytest.approx(0.1728)
+    assert fee == pytest.approx(25 * 0.07 * 0.40 * 0.60)
+    # matches the docs table: 100 shares at 0.50 pay $1.75
+    assert estimate_trade_fee_usdc(asset="BTC", market_price=0.50, bet_size=0, shares=100) == pytest.approx(1.75)
 
 
 def test_build_model_tracks_returns_three_tracks(mock_client):

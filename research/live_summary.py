@@ -150,9 +150,11 @@ def build_summary(state: Path, now: float) -> dict:
         pnl = float(res["pnl"])
         amount = _num(trade.get("amount_usdc")) or 0.0
         price = _num(trade.get("price")) or 0.0
-        fee = estimate_crypto_taker_fee_usdc(price=price, usdc_notional=amount)
-        gross_values.append(pnl)
-        net_values.append(pnl - fee)
+        recorded = _num(res.get("fees_usdc"))
+        fee = recorded if recorded is not None else estimate_crypto_taker_fee_usdc(price=price, usdc_notional=amount)
+        partial = _num(res.get("partial_net_usdc")) or 0.0
+        gross_values.append(pnl + partial)
+        net_values.append(pnl - fee + partial)
         resolved_up = res.get("resolved_up")
         edge = _num(trade.get("edge"))
         if not isinstance(resolved_up, bool) or edge is None or not 0 < price < 1:
@@ -164,7 +166,7 @@ def build_summary(state: Path, now: float) -> dict:
         briers_market.append((price - outcome) ** 2)
 
     settled_n = len(gross_values)
-    wins = sum(1 for p in gross_values if p > 0)
+    wins = sum(1 for p in net_values if p > 0)
     win_low, win_high = wilson_interval(wins, settled_n)
     gross_pnl = sum(gross_values)
     net_pnl = sum(net_values)

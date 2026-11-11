@@ -189,6 +189,14 @@ for src in "$STATE"/ledgers/*.jsonl; do
   copy_file "$src" "ledgers/$(basename "$src")"
 done
 copy_file "$STATE/jev_calls.jsonl" "jev_calls.jsonl"
+
+# Market tape (backtests/training): one gzipped file per UTC day, shared across dates and hosts.
+TAPE_DEST="$LOGS_ROOT/market-data/$HOST"
+for src in "$STATE"/tape/*.jsonl; do
+  [ -f "$src" ] || continue
+  mkdir -p "$TAPE_DEST"
+  gzip -nc "$src" > "$TAPE_DEST/$(basename "$src").gz.tmp" && mv -f "$TAPE_DEST/$(basename "$src").gz.tmp" "$TAPE_DEST/$(basename "$src").gz"
+done
 copy_file "$STATE/runtime_status.json" "runtime_status.json"
 
 for src in "$STATE"/logs/bot.log.*; do
@@ -199,7 +207,8 @@ done
 scrub_dest
 
 gitx add -- "paper/$HOST/$DATE"
-if ! gitx diff --cached --quiet -- "paper/$HOST/$DATE"; then
+[ -d "market-data/$HOST" ] && gitx add -- "market-data/$HOST"
+if ! gitx diff --cached --quiet -- "paper/$HOST/$DATE" "market-data"; then
   gitx commit -m "paper logs: $HOST $DATE $(date -u +%H:%M:%SZ)" >/dev/null || \
     fail "commit failed; will retry next tick" 0
 fi
