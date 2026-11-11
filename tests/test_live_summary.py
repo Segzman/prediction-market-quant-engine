@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from research.live_summary import build_summary, main, wilson_interval
+from research.live_summary import build_summary, main, render_markdown, wilson_interval
 
 NOW = 1_800_000_000.0
 FORBIDDEN = (
@@ -220,3 +220,16 @@ def test_wilson_interval_bounds():
     assert wilson_interval(0, 0) == (0.0, 0.0)
     low, high = wilson_interval(5, 10)
     assert 0 < low < 0.5 < high < 1
+
+
+def test_summary_splits_models(state):
+    import shutil
+
+    shutil.copy(state / "ledgers" / "both.jsonl", state / "ledgers" / "conviction.jsonl")
+    summary = build_summary(state, NOW)
+    both, conv = summary["tracks"]["both"], summary["tracks"]["conviction"]
+    assert both == conv and both["paper_trades"] == 3 and both["settled_trades"] == 2
+    assert summary["settled_trades"] == 4
+    assert summary["net_pnl_usdc"]["net"] == pytest.approx(2 * both["net_pnl_usdc"], abs=1e-3)
+    md = render_markdown(summary)
+    assert "## By model" in md and "| BOTH |" in md and "| CONVICTION |" in md

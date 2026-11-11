@@ -18,6 +18,7 @@ import random
 import statistics
 import sys
 import time
+from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -91,8 +92,8 @@ def bootstrap_sum_ci(values: list[float], seed: int = 0) -> tuple[float, float]:
 
 def _load_ledgers(
     state: Path,
-) -> tuple[list[tuple[dict, dict]], int, int, list[float]]:
-    """Return settled (trade, resolution) pairs, trade count, distinct windows, timestamps."""
+) -> tuple[list[tuple[dict, dict, str]], int, int, list[float], Counter]:
+    """Return settled (trade, resolution, track) rows, trade count, windows, timestamps, trades per track."""
     trades: dict[tuple[str, str], dict] = {}
     resolutions: dict[tuple[str, str], dict] = {}
     windows: set[int] = set()
@@ -115,11 +116,12 @@ def _load_ledgers(
             elif kind == "resolution":
                 resolutions[key] = rec
     settled = [
-        (trades[key], res)
+        (trades[key], res, key[0].removesuffix(".jsonl"))
         for key, res in resolutions.items()
         if key in trades and _num(res.get("pnl")) is not None
     ]
-    return settled, len(trades), len(windows), stamps
+    per_track = Counter(key[0].removesuffix(".jsonl") for key in trades)
+    return settled, len(trades), len(windows), stamps, per_track
 
 
 def _load_jev(path: Path) -> tuple[list[dict], list[float]]:
@@ -134,19 +136,39 @@ def _iso(epoch: float | None) -> str | None:
     return datetime.fromtimestamp(epoch, tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _track_summary(net_values: list[float], trades: int) -> dict:
+    """One strategy's ledger: each track trades its own book, so totals across tracks mislead."""
+    n = len(net_values)
+    wins = sum(1 for p in net_values if p > 0)
+    low, high = wilson_interval(wins, n)
+    ci = None
+    if n >= BOOTSTRAP_MIN_N:
+        ci = [round(x, 4) for x in bootstrap_sum_ci(net_values)]
+    return {
+        "paper_trades": trades,
+        "settled_trades": n,
+        "win_rate": round(wins / n, 4) if n else None,
+        "wilson95": [round(low, 4), round(high, 4)] if n else None,
+        "net_pnl_usdc": round(sum(net_values), 4),
+        "avg_net_per_trade": round(sum(net_values) / n, 4) if n else None,
+        "bootstrap95": ci,
+    }
+
+
 def build_summary(state: Path, now: float) -> dict:
     status = _read_json(state / "runtime_status.json")
     if str(status.get("mode") or "") == "LIVE":
         raise RuntimeError("refusing to publish: runtime mode is LIVE")
 
-    settled, trade_count, windows_observed, ledger_stamps = _load_ledgers(state)
+    settled, trade_count, windows_observed, ledger_stamps, per_track = _load_ledgers(state)
     jev_records, jev_stamps = _load_jev(state / "jev_calls.jsonl")
 
     gross_values: list[float] = []
     net_values: list[float] = []
     briers_model: list[float] = []
     briers_market: list[float] = []
-    for trade, res in settled:
+    by_track: dict[str, list[float]] = {name: [] for name in per_track}
+    for trade, res, track in settled:
         pnl = float(res["pnl"])
         amount = _num(trade.get("amount_usdc")) or 0.0
         price = _num(trade.get("price")) or 0.0
@@ -155,6 +177,7 @@ def build_summary(state: Path, now: float) -> dict:
         partial = _num(res.get("partial_net_usdc")) or 0.0
         gross_values.append(pnl + partial)
         net_values.append(pnl - fee + partial)
+        by_track[track].append(pnl - fee + partial)
         resolved_up = res.get("resolved_up")
         edge = _num(trade.get("edge"))
         if not isinstance(resolved_up, bool) or edge is None or not 0 < price < 1:
@@ -222,6 +245,9 @@ def build_summary(state: Path, now: float) -> dict:
             "gross": round(gross_pnl, 4),
             "est_fees": round(fees, 4),
             "bootstrap95": pnl_ci,
+        },
+        "tracks": {
+            name: _track_summary(by_track[name], per_track[name]) for name in sorted(by_track)
         },
         "brier": {
             "n": len(briers_model),
@@ -297,7 +323,7 @@ def render_markdown(summary: dict) -> str:
         "",
         BANNER,
         "",
-        f"Updated: {summary['updated_at']} (every 15 minutes from the VM)",
+        f"Updated: {summary['updated_at']} (every 15 minutes from the paper server)",
         "",
         "| Metric | Value |",
         "| --- | --- |",
@@ -316,6 +342,26 @@ def render_markdown(summary: dict) -> str:
         "Paper results only. Fees are an estimate. Small samples do not establish an edge.",
         "",
     ]
+    tracks = summary.get("tracks") or {}
+    if tracks:
+        lines[lines.index("| Metric | Value |") - 1:lines.index("| Metric | Value |") - 1] = [
+            "",
+            "## By model",
+            "",
+            "Each model trades its own paper book; compare them side by side, not summed.",
+            "",
+            "| Model | Trades (settled) | Win rate (Wilson 95%) | Net PnL (USDC) | Avg / trade | Net 95% bootstrap |",
+            "| --- | --- | --- | --- | --- | --- |",
+            *(
+                f"| {name.upper()} | {t['paper_trades']} ({t['settled_trades']}) | {_fmt(t['win_rate'])} "
+                f"({_fmt(t['wilson95'][0]) + ' to ' + _fmt(t['wilson95'][1]) if t['wilson95'] else 'n/a'}) | "
+                f"{_fmt(t['net_pnl_usdc'])} | {_fmt(t['avg_net_per_trade'])} | "
+                f"{(_fmt(t['bootstrap95'][0]) + ' to ' + _fmt(t['bootstrap95'][1])) if t['bootstrap95'] else 'needs 20+ settled'} |"
+                for name, t in tracks.items()
+            ),
+            "",
+            "## All models combined",
+        ]
     return "\n".join(lines)
 
 
