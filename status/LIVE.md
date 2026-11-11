@@ -2,7 +2,7 @@
 
 > **Paper trading only. No real money is at risk. This page makes no claim of edge.**
 
-Updated: 2026-11-11T21:24:36Z (every 15 minutes from the paper server)
+Updated: 2026-11-11T21:39:53Z (every 15 minutes from the paper server)
 
 ## By model
 
@@ -18,10 +18,10 @@ Each model trades its own paper book; compare them side by side, not summed.
 
 | Metric | Value |
 | --- | --- |
-| Observed since | 2026-11-10T21:45:06Z (23.7 h) |
-| Last heartbeat | 2026-11-11T21:24:35Z (age 1.4 s) |
+| Observed since | 2026-11-10T21:45:06Z (23.9 h) |
+| Last heartbeat | 2026-11-11T21:39:52Z (age 0.7 s) |
 | Feeds healthy | yes |
-| Windows observed | 264 |
+| Windows observed | 267 |
 | Paper trades | 156 |
 | Settled trades | 156 |
 | Win rate | 0.4872 (Wilson 95%: 0.4100 to 0.5650) |
