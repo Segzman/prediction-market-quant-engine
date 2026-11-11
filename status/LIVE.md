@@ -2,7 +2,7 @@
 
 > **Paper trading only. No real money is at risk. This page makes no claim of edge.**
 
-Updated: 2026-11-11T04:36:53Z (every 15 minutes from the paper server)
+Updated: 2026-11-11T04:47:24Z (every 15 minutes from the paper server)
 
 ## By model
 
@@ -10,23 +10,23 @@ Each model trades its own paper book; compare them side by side, not summed.
 
 | Model | Trades (settled) | Win rate (Wilson 95%) | Net PnL (USDC) | Avg / trade | Net 95% bootstrap |
 | --- | --- | --- | --- | --- | --- |
-| A · Conviction (momentum) | 15 (15) | 0.6000 (0.3575 to 0.8018) | 3.5946 | 0.2396 | needs 20+ settled |
-| B · Conviction (brownian+micro) | 22 (22) | 0.4545 (0.2692 to 0.6534) | -0.4570 | -0.0208 | -6.7535 to 5.2438 |
-| C · Conviction (calibrated) | 22 (22) | 0.5455 (0.3466 to 0.7308) | 0.5273 | 0.0240 | -7.8348 to 6.7747 |
+| A · Conviction (momentum) | 16 (16) | 0.5625 (0.3318 to 0.7690) | 2.9669 | 0.1854 | needs 20+ settled |
+| B · Conviction (brownian+micro) | 23 (23) | 0.4348 (0.2563 to 0.6319) | -1.0847 | -0.0472 | -7.4277 to 4.6568 |
+| C · Conviction (calibrated) · hold to settle | 23 (23) | 0.5217 (0.3296 to 0.7076) | -0.1005 | -0.0044 | -8.2431 to 6.4436 |
 
 ## All models combined
 
 | Metric | Value |
 | --- | --- |
-| Observed since | 2026-11-10T21:45:06Z (6.9 h) |
-| Last heartbeat | 2026-11-11T04:36:52Z (age 0.5 s) |
+| Observed since | 2026-11-10T21:45:06Z (7.0 h) |
+| Last heartbeat | 2026-11-11T04:47:22Z (age 2.0 s) |
 | Feeds healthy | yes |
-| Windows observed | 84 |
-| Paper trades | 59 |
-| Settled trades | 59 |
-| Win rate | 0.5254 (Wilson 95%: 0.4004 to 0.6473) |
-| Net PnL, paper (USDC) | 3.6649 after est. fees (gross 8.3079) |
-| Net PnL 95% bootstrap (USDC) | -6.6497 to 13.2591 |
+| Windows observed | 86 |
+| Paper trades | 62 |
+| Settled trades | 62 |
+| Win rate | 0.5000 (Wilson 95%: 0.3792 to 0.6208) |
+| Net PnL, paper (USDC) | 1.7816 after est. fees (gross 6.8079) |
+| Net PnL 95% bootstrap (USDC) | -9.0927 to 11.5756 |
 | Brier, model vs market (41 settled) | 0.1640 vs 0.1519 |
 | JEV calls / latency p50 | 0 / n/a ms |
 
