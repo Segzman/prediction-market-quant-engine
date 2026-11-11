@@ -147,6 +147,14 @@ MODEL_LABELS = {
 }
 
 
+TRACK_IDS = {"conviction": "CONVICTION_ONLY", "mispricing": "MISPRICING_ONLY", "both": "BOTH"}
+
+
+def _model_label(name: str) -> str:
+    hold = {t.strip().upper() for t in os.environ.get("HOLD_TO_SETTLEMENT_TRACKS", "").split(",")}
+    return MODEL_LABELS.get(name, name) + (" · hold to settle" if TRACK_IDS.get(name) in hold else "")
+
+
 def _track_summary(net_values: list[float], trades: int) -> dict:
     """One strategy's ledger: each track trades its own book, so totals across tracks mislead."""
     n = len(net_values)
@@ -258,8 +266,8 @@ def build_summary(state: Path, now: float) -> dict:
             "bootstrap95": pnl_ci,
         },
         "tracks": {
-            MODEL_LABELS.get(name, name): _track_summary(by_track[name], per_track[name])
-            for name in sorted(by_track, key=lambda n: MODEL_LABELS.get(n, n))
+            _model_label(name): _track_summary(by_track[name], per_track[name])
+            for name in sorted(by_track, key=_model_label)
         },
         "brier": {
             "n": len(briers_model),

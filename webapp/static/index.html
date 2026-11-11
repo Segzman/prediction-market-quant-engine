@@ -350,7 +350,7 @@ function buildSparkline(history) {
 
 function renderTrack(track, engineScores) {
   const color = TRACK_COLORS[track.name] || "#888";
-  const label = TRACK_LABELS[track.name] || track.name;
+  const label = (TRACK_LABELS[track.name] || track.name) + (track.hold_to_settlement ? " · hold to settle" : "");
   const lastPnl = track.pnl_history ? track.pnl_history[track.pnl_history.length-1] : 0;
   const ws = track.win_stats || {};
   const bk = track.bankroll || {};

@@ -49,6 +49,7 @@ from config import (
     HIGH_CONVICTION_SL_PCT,
     HIGH_CONVICTION_TIME_EXIT,
     HIGH_CONVICTION_TIME_EXTENSION_SECONDS,
+    HOLD_TO_SETTLEMENT_TRACKS,
     INTENT_RECON_ABORT_GRACE_SECONDS,
     LATE_WINDOW_THRESHOLD_SECONDS,
     LATE_WINDOW_TP_PCT,
@@ -522,7 +523,7 @@ async def check_position_exits(
     closed_positions = []
     open_positions = window.get_open_positions()
 
-    if not open_positions:
+    if not open_positions or track.name in HOLD_TO_SETTLEMENT_TRACKS:
         return closed_positions
 
     now = time.time()
@@ -823,7 +824,7 @@ async def place_resting_exits(
     These orders sit on the CLOB and fill automatically at the exact target price,
     eliminating polling slippage entirely for SL and TP.
     """
-    if track.orderer.dry_run:
+    if track.orderer.dry_run or track.name in HOLD_TO_SETTLEMENT_TRACKS:
         return
 
     from state.types import Direction as _Direction

@@ -98,6 +98,11 @@ EXIT_TP1_FRACTION: Final[float] = _get_float("EXIT_TP1_FRACTION", 0.5)
 # Trailing ratchet: SL follows highest price down to -6%; 0 = disabled
 # Sim shows trails chop winners; enable only on live evidence.
 EXIT_TRAIL_PCT: Final[float] = _get_float("EXIT_TRAIL_PCT", 0.0)
+# Tracks that skip every early exit (TP/SL/break-even/time) and hold to settlement.
+# Paper A/B test: live logs showed early exits cutting trades that won at settlement.
+HOLD_TO_SETTLEMENT_TRACKS: Final[frozenset[str]] = frozenset(
+    t.strip().upper() for t in os.getenv("HOLD_TO_SETTLEMENT_TRACKS", "").split(",") if t.strip()
+)
 # Exit immediately if price drops >8% in the velocity window
 MOMENTUM_SL_VELOCITY_PCT: Final[float] = _get_float("MOMENTUM_SL_VELOCITY_PCT", 0.08)
 # Seconds to measure velocity over

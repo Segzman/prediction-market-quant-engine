@@ -198,3 +198,19 @@ def test_sweep_settles_remaining_stake_with_fees(tmp_path):
     expected = 2.0 * (1 / 0.80 - 1) - entry_fee + 0.2
     assert net_pnl(led.get_all_resolutions()[0]) == pytest.approx(expected)
     assert state.trade_history[0].pnl == pytest.approx(expected)
+
+
+def test_hold_track_skips_early_exits(monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+
+    import bot
+    from state.position import Position
+
+    pos = Position(order_id="h", window_end_ts=100, direction="UP", size_usdc=4.0, entry_price=0.80, entry_ts=0.0,
+                   stop_loss_price=0.70)
+    window = SimpleNamespace(get_open_positions=lambda: [pos])
+    monkeypatch.setattr(bot, "HOLD_TO_SETTLEMENT_TRACKS", frozenset({"BOTH"}))
+    track = SimpleNamespace(name="BOTH")
+    closed = asyncio.run(bot.check_position_exits(track, asset="BTC", window=window, up_price=0.10, down_price=0.90))
+    assert closed == [] and pos.status.value == "OPEN"  # a crash through the stop does not sell

@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from config import (
+    HOLD_TO_SETTLEMENT_TRACKS,
     MAX_PRICE_FEED_DIVERGENCE_BPS,
     MIN_HEALTHY_PRICE_FEEDS,
     POLYMARKET_BOOK_STALE_THRESHOLD_SECONDS,
@@ -575,6 +576,7 @@ def _build_runtime_status_multi_track(
         track_payloads.append(
             {
                 "name": track.name,
+                "hold_to_settlement": track.name in HOLD_TO_SETTLEMENT_TRACKS,
                 "css_color": track.css_color,
                 "status": status,
                 "signal": signal_payload,
