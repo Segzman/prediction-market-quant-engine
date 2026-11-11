@@ -1,9 +1,9 @@
 {
   "banner": "Paper trading only. No real money. No claim of edge.",
   "brier": {
-    "market_baseline": 0.1376,
-    "model": 0.1446,
-    "n": 95
+    "market_baseline": 0.1364,
+    "model": 0.1432,
+    "n": 96
   },
   "feeds_healthy": true,
   "jev": {
@@ -13,30 +13,30 @@
   },
   "net_pnl_usdc": {
     "bootstrap95": [
-      -56.1804,
-      -1.0994
+      -56.8192,
+      -0.2174
     ],
-    "est_fees": 13.1396,
-    "gross": -14.4329,
-    "net": -27.5725
+    "est_fees": 13.1889,
+    "gross": -13.8285,
+    "net": -27.0174
   },
   "paper_trades": 157,
-  "settled_trades": 156,
+  "settled_trades": 157,
   "tracks": {
     "A \u00b7 Conviction (momentum)": {
-      "avg_net_per_trade": -0.2085,
+      "avg_net_per_trade": -0.1907,
       "bootstrap95": [
-        -20.8609,
-        1.4618
+        -20.5942,
+        2.0074
       ],
-      "net_pnl_usdc": -8.7552,
+      "net_pnl_usdc": -8.2001,
       "paper_trades": 43,
-      "settled_trades": 42,
+      "settled_trades": 43,
       "wilson95": [
-        0.25,
-        0.5319
+        0.2637,
+        0.5442
       ],
-      "win_rate": 0.381
+      "win_rate": 0.3953
     },
     "B \u00b7 Conviction (brownian+micro)": {
       "avg_net_per_trade": -0.1188,
@@ -69,21 +69,21 @@
       "win_rate": 0.6471
     }
   },
-  "updated_at": "2026-11-11T22:10:01Z",
+  "updated_at": "2026-11-11T22:25:04Z",
   "uptime": {
     "bot_up": true,
     "heartbeat_age_seconds": 1.8,
-    "last_heartbeat_utc": "2026-11-11T22:09:59Z",
-    "observed_hours": 24.42,
+    "last_heartbeat_utc": "2026-11-11T22:25:02Z",
+    "observed_hours": 24.67,
     "observed_since_utc": "2026-11-10T21:45:06Z"
   },
   "win_rate": {
-    "rate": 0.4872,
+    "rate": 0.4904,
     "wilson95": [
-      0.41,
-      0.565
+      0.4134,
+      0.5679
     ],
-    "wins": 76
+    "wins": 77
   },
-  "windows_observed": 273
+  "windows_observed": 276
 }
