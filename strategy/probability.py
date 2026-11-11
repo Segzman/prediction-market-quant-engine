@@ -9,6 +9,7 @@ from pathlib import Path
 from statistics import NormalDist
 
 from config import MODEL_C_MIN_BUCKET_SAMPLES, MOMENTUM_THRESHOLD
+from persistence.ledger import Ledger
 
 # Shared instance: NormalDist is stateless, no need to rebuild per tick.
 _NORMAL_DIST = NormalDist()
@@ -624,31 +625,17 @@ def build_model_c_bucket_key(
     )
 
 
-def _read_jsonl(path: Path) -> list[dict]:
-    records: list[dict] = []
-    with path.open("r", encoding="utf-8") as handle:
-        for line in handle:
-            line = line.strip()
-            if not line:
-                continue
-            records.append(json.loads(line))
-    return records
-
-
-# path -> (mtime_ns at parse time, parsed records). Avoids re-reading the
-# growing JSONL ledger on every Model C call.
-_LEDGER_CACHE: dict[str, tuple[int, list[dict]]] = {}
+# path -> Ledger. Its incremental reader parses only appended bytes and skips the
+# candidate rows (~97% of the file); re-parsing the whole file on every mtime change
+# (every tick) pinned the bot at 600 MB+ and hung the 1 GB box. Ledgers are append-only.
+_LEDGERS: dict[str, Ledger] = {}
 
 
 def _read_ledger(path: Path) -> list[dict]:
-    cache_key = str(path)
-    mtime_ns = path.stat().st_mtime_ns
-    cached = _LEDGER_CACHE.get(cache_key)
-    if cached is not None and cached[0] == mtime_ns:
-        return cached[1]
-    records = _read_jsonl(path)
-    _LEDGER_CACHE[cache_key] = (mtime_ns, records)
-    return records
+    key = str(path)
+    if key not in _LEDGERS:
+        _LEDGERS[key] = Ledger(key)
+    return _LEDGERS[key]._read_records()
 
 
 @lru_cache(maxsize=8)

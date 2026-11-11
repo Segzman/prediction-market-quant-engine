@@ -1,5 +1,4 @@
 import json
-import os
 
 import pytest
 
@@ -400,89 +399,18 @@ def test_model_c_ledger_fallback_excludes_resolutions_after_decision_ts(tmp_path
     assert probability == pytest.approx(0.5)
 
 
-def test_model_c_ledger_cache_rereads_only_after_mtime_change(tmp_path, monkeypatch):
+def test_model_c_ledger_reads_appended_rows_only(tmp_path):
     meta_key = _model_c_meta_key()
     ledger = tmp_path / "trades.jsonl"
-    ledger.write_text(
-        "\n".join(
-            [
-                json.dumps(
-                    {
-                        "type": "resolution",
-                        "model_c_bucket": meta_key,
-                        "window_end_ts": 1100,
-                        "resolved_up": True,
-                    }
-                ),
-                json.dumps(
-                    {
-                        "type": "resolution",
-                        "model_c_bucket": meta_key,
-                        "window_end_ts": 1200,
-                        "resolved_up": True,
-                    }
-                ),
-                json.dumps(
-                    {
-                        "type": "resolution",
-                        "model_c_bucket": meta_key,
-                        "window_end_ts": 1150,
-                        "resolved_up": True,
-                    }
-                ),
-            ]
-        )
-        + "\n",
-        encoding="utf-8",
+    row = lambda end, up: json.dumps(  # noqa: E731
+        {"type": "resolution", "model_c_bucket": meta_key, "window_end_ts": end, "resolved_up": up}
     )
-    os.utime(ledger, (1000, 1000))
+    ledger.write_text(row(1100, True) + "\n" + row(1200, True) + "\n"
+                      + json.dumps({"type": "candidate", "ts": 1}) + "\n", encoding="utf-8")
+    first = _model_c_ledger_probability(ledger)
+    assert _model_c_ledger_probability(ledger) == first
+    with ledger.open("a", encoding="utf-8") as handle:
+        handle.write(row(1150, False) + "\n")
+    assert _model_c_ledger_probability(ledger) < first  # the appended loss is picked up
+    assert all(r["type"] != "candidate" for r in probability_mod._read_ledger(ledger))
 
-    read_calls: list[str] = []
-    real_read_jsonl = probability_mod._read_jsonl
-
-    def counting_read_jsonl(path):
-        read_calls.append(str(path))
-        return real_read_jsonl(path)
-
-    monkeypatch.setattr(probability_mod, "_read_jsonl", counting_read_jsonl)
-
-    assert _model_c_ledger_probability(ledger) == pytest.approx(0.95)
-    assert _model_c_ledger_probability(ledger) == pytest.approx(0.95)
-    assert len(read_calls) == 1
-
-    ledger.write_text(
-        "\n".join(
-            [
-                json.dumps(
-                    {
-                        "type": "resolution",
-                        "model_c_bucket": meta_key,
-                        "window_end_ts": 1100,
-                        "resolved_up": True,
-                    }
-                ),
-                json.dumps(
-                    {
-                        "type": "resolution",
-                        "model_c_bucket": meta_key,
-                        "window_end_ts": 1200,
-                        "resolved_up": False,
-                    }
-                ),
-                json.dumps(
-                    {
-                        "type": "resolution",
-                        "model_c_bucket": meta_key,
-                        "window_end_ts": 1150,
-                        "resolved_up": False,
-                    }
-                ),
-            ]
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    os.utime(ledger, (2000, 2000))
-
-    assert _model_c_ledger_probability(ledger) == pytest.approx(1 / 3)
-    assert len(read_calls) == 2
