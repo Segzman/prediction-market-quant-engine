@@ -22,10 +22,18 @@ def net_pnl(resolution: dict) -> float:
     )
 
 
+_CANDIDATE_MARK = '"type": "candidate"'  # rows are json.dumps(sort_keys=True)
+
+
 class Ledger:
     def __init__(self, filepath: str = LEDGER_FILE):
         self.filepath = filepath
         self._lock = threading.Lock()
+        # Parsed non-candidate rows plus the byte offset read so far. Candidate rows are
+        # ~97% of the file (~25 MB/day/track); re-parsing them on every lookup pinned the
+        # t4g.micro at 400 MB RSS and hung it in swap. Append-only, so read only new bytes.
+        self._cache: list[dict] = []
+        self._offset = 0
         os.makedirs(os.path.dirname(filepath) or ".", exist_ok=True)
         if not os.path.exists(filepath):
             with open(filepath, "a", encoding="utf-8"):
@@ -386,9 +394,12 @@ class Ledger:
         return [record for record in self._read_records() if record.get("type") == "fill"]
 
     def get_all_candidates(self) -> list[dict]:
-        return [
-            record for record in self._read_records() if record.get("type") == "candidate"
-        ]
+        records: list[dict] = []
+        with open(self.filepath, encoding="utf-8") as handle:
+            for line in handle:
+                if _CANDIDATE_MARK in line:
+                    records.append(json.loads(line))
+        return records
 
     def get_order_ids(self) -> set[str]:
         return {
@@ -572,11 +583,19 @@ class Ledger:
                 handle.write(payload + "\n")
 
     def _read_records(self) -> list[dict]:
-        records: list[dict] = []
-        with open(self.filepath, encoding="utf-8") as handle:
-            for line in handle:
-                line = line.strip()
-                if not line:
-                    continue
-                records.append(json.loads(line))
-        return records
+        """All non-candidate rows (use get_all_candidates for those). Callers must not mutate them."""
+        with self._lock:
+            size = os.path.getsize(self.filepath)
+            if size < self._offset:  # truncated or replaced: start over
+                self._cache, self._offset = [], 0
+            if size > self._offset:
+                with open(self.filepath, "rb") as handle:
+                    handle.seek(self._offset)
+                    chunk = handle.read(size - self._offset)
+                end = chunk.rfind(b"\n") + 1  # leave a half-written last line for next time
+                for raw in chunk[:end].decode("utf-8").splitlines():
+                    line = raw.strip()
+                    if line and _CANDIDATE_MARK not in line:
+                        self._cache.append(json.loads(line))
+                self._offset += end
+            return list(self._cache)

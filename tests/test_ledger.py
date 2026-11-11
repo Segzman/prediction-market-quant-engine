@@ -248,3 +248,21 @@ def test_window_outcome_round_trip_and_dedup(tmp_ledger):
     assert tmp_ledger.get_all_trades() == []
     assert tmp_ledger.get_all_resolutions() == []
     assert tmp_ledger.get_daily_summary()["total_trades"] == 0
+
+
+def test_ledger_reads_incrementally_and_skips_candidates(tmp_path):
+    from persistence.ledger import Ledger
+
+    p = tmp_path / "l.jsonl"
+    led = Ledger(str(p))
+    led.record_window_outcome(100, True, market_slug="s")
+    p.open("a").write('{"type": "candidate", "ts": 1}\n')
+    assert len(led.get_all_window_outcomes()) == 1
+    p.open("a").write('{"type": "window_outcome", "window_end_ts": 200')  # half-written line
+    assert len(led.get_all_window_outcomes()) == 1
+    p.open("a").write(', "resolved_up": false}\n')
+    assert [o["window_end_ts"] for o in led.get_all_window_outcomes()] == [100, 200]
+    assert len(led.get_all_candidates()) == 1
+    assert all(r.get("type") != "candidate" for r in led._read_records())
+    p.write_text("")  # replaced file resets the cache
+    assert led.get_all_window_outcomes() == []
