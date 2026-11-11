@@ -6,6 +6,8 @@ import logging
 import time
 from collections.abc import Callable
 
+BINANCE_FALLBACK_AFTER_SECONDS = 900
+
 
 def fetch_binance_agg_trade_price(
     asset: str,
@@ -54,15 +56,20 @@ def resolve_market_outcome(
     window_end_ts: int,
     prefer_binance: bool,
     resolve_with_binance_fn: Callable[[str, int], dict | None],
+    now_ts: float | None = None,
 ) -> dict | None:
-    if prefer_binance:
+    # Polymarket settles on Chainlink's TWAP; Binance close-vs-open disagreed on
+    # 6/53 windows, so it is only a fallback once the official result is overdue.
+    if hasattr(market_client, "get_market_resolution"):
         with contextlib.suppress(Exception):
-            resolution = resolve_with_binance_fn(asset, window_end_ts)
+            resolution = market_client.get_market_resolution(market_slug)
             if resolution is not None:
                 return resolution
-    if not hasattr(market_client, "get_market_resolution"):
-        return None
-    return market_client.get_market_resolution(market_slug)
+    now = time.time() if now_ts is None else now_ts
+    if prefer_binance and now >= window_end_ts + BINANCE_FALLBACK_AFTER_SECONDS:
+        with contextlib.suppress(Exception):
+            return resolve_with_binance_fn(asset, window_end_ts)
+    return None
 
 
 async def wait_for_market_resolution(
@@ -160,18 +167,21 @@ def sweep_unresolved_trades_once(
         }
         if ledger.has_terminal_record(order_id):
             continue
+        held = next((t for t in track.state.trade_history if t.order_id == order_id), None)
         ledger.record_resolution(
             order_id,
             window_end_ts,
             bool(resolution["resolved_up"]),
             str(trade["direction"]),
-            float(trade["amount_usdc"]),
+            held.amount_usdc if held else float(trade["amount_usdc"]),  # stake left after partial closes
             float(trade["price"]),
             final_price=resolution.get("final_price"),
             price_to_beat=resolution.get("price_to_beat"),
             closed_time=resolution.get("closed_time"),
             uma_resolution_status=resolution.get("uma_resolution_status"),
             feature_snapshot=calibration_fields or None,
+            fees_usdc=held.fee_usdc if held else None,
+            partial_net_usdc=held.partial_pnl if held else 0.0,
         )
         track.state.record_resolution(order_id, bool(resolution["resolved_up"]))
         if track.model == str(trade.get("model")) and trade.get("role", "PRIMARY") != "HEDGE":

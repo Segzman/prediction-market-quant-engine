@@ -2986,54 +2986,18 @@ async def trading_loop(
             return
 
         if shared_state.current_window is None or shared_state.current_window.get_phase(int(time.time())) == WindowPhase.EXPIRED:
-            # Close any open positions on the expired window before moving on
-            # (check each track's own window state)
+            # Positions still open at expiry are held to settlement: the sweep books
+            # them on Polymarket's official outcome (no exit fee). Selling into the
+            # expired book marked losers at entry when nobody bid (hid ~$16/track).
             for track in tracks:
                 track_window = track.state.current_window
                 if track_window is not None and track_window.has_open_positions():
                     LOGGER.info(
-                        "[%s] Window %d expired with %d open positions — closing all",
+                        "[%s] Window %d expired with %d open positions — holding to settlement",
                         track.name,
                         track_window.end_ts,
                         len(track_window.get_open_positions()),
                     )
-                    exp_up_book = exp_down_book = None
-                    with contextlib.suppress(Exception):
-                        exp_up_book, exp_down_book = await refresh_window_books(track.orderer, track_window)
-                    for pos in track_window.get_open_positions():
-                        if pos.direction == "UP":
-                            current_price = (
-                                exp_up_book.best_bid
-                                if exp_up_book and exp_up_book.best_bid
-                                else pos.entry_price
-                            )
-                        else:
-                            current_price = (
-                                exp_down_book.best_bid
-                                if exp_down_book and exp_down_book.best_bid
-                                else pos.entry_price
-                            )
-                        fee_usdc = estimate_trade_fee_usdc(
-                            asset=asset,
-                            market_price=current_price,
-                            bet_size=pos.remaining_size_usdc,
-                            shares=pos.remaining_size_usdc / pos.entry_price if pos.entry_price > 0 else 0.0,
-                        )
-                        realized_pnl = pos.close(
-                            exit_price=current_price,
-                            exit_ts=time.time(),
-                            reason=ExitReason.WINDOW_CLOSE,
-                            fee_usdc=fee_usdc,
-                        )
-                        track.state.realized_pnl += realized_pnl
-                        track.state.daily_pnl += realized_pnl
-                        _record_full_exit(track, pos, track_window.end_ts, current_price, "WINDOW_CLOSE")
-                        if track.stats is not None:
-                            track.stats.note(f"Window close exit | {pos.direction} | PnL: ${realized_pnl:+.2f}")
-                        LOGGER.info(
-                            "[%s] Closed position %s on window expiry | %s | PnL: $%.2f",
-                            track.name, pos.order_id, pos.direction, realized_pnl,
-                        )
             try:
                 new_window = await asyncio.to_thread(finder.find_active_window)
             except Exception as exc:

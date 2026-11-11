@@ -157,3 +157,44 @@ def test_entry_gate_prices_expected_exit_fee():
         else:
             state.record_early_exit(f"s{i}", position_pnl=0.10)     # sold early
     assert early_exit_share(state) == pytest.approx(0.6)
+
+
+def test_resolution_prefers_polymarket_over_binance():
+    from ops.resolution import BINANCE_FALLBACK_AFTER_SECONDS, resolve_market_outcome
+
+    class Client:
+        result = {"resolved_up": False}
+        def get_market_resolution(self, slug):
+            return self.result
+
+    binance = lambda asset, end: {"resolved_up": True}  # noqa: E731
+    kw = dict(asset="BTC", market_slug="s", window_end_ts=1000, prefer_binance=True, resolve_with_binance_fn=binance)
+    assert resolve_market_outcome(Client(), now_ts=1010, **kw) == {"resolved_up": False}
+    Client.result = None  # official result not posted yet
+    assert resolve_market_outcome(Client(), now_ts=1010, **kw) is None
+    assert resolve_market_outcome(Client(), now_ts=1000 + BINANCE_FALLBACK_AFTER_SECONDS, **kw) == {"resolved_up": True}
+
+
+def test_sweep_settles_remaining_stake_with_fees(tmp_path):
+    from types import SimpleNamespace
+
+    from ops.resolution import sweep_unresolved_trades_once
+    from persistence.ledger import Ledger, net_pnl
+
+    led = Ledger(str(tmp_path / "t.jsonl"))
+    led.record_trade(window_end_ts=100, direction="UP", amount_usdc=4.0, price=0.80, edge=0.05, ev=0.0,
+                     model="A", order_id="p", dry_run=True, asset="BTC", role="PRIMARY", track="BOTH",
+                     market_slug="btc-updown-5m-0")
+    state = BotState()
+    entry_fee = _entry(state, "p")
+    state.record_partial_exit("p", 0.2)
+    state.update_trade_amount("p", 2.0)
+    track = SimpleNamespace(ledger=led, state=state, model="A", stats=SimpleNamespace(note=lambda m: None))
+    client = SimpleNamespace(get_market_resolution=lambda slug: {"resolved_up": True})
+    n = sweep_unresolved_trades_once(track, client, target_asset="BTC", extract_market_slug_fn=lambda u: "",
+                                     resolve_market_outcome_fn=lambda c, **k: c.get_market_resolution(k["market_slug"]),
+                                     is_demo_client_fn=lambda c: False, now_ts=200)
+    assert n == 1
+    expected = 2.0 * (1 / 0.80 - 1) - entry_fee + 0.2
+    assert net_pnl(led.get_all_resolutions()[0]) == pytest.approx(expected)
+    assert state.trade_history[0].pnl == pytest.approx(expected)
