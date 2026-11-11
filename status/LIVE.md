@@ -2,7 +2,7 @@
 
 > **Paper trading only. No real money is at risk. This page makes no claim of edge.**
 
-Updated: 2026-11-11T05:02:29Z (every 15 minutes from the paper server)
+Updated: 2026-11-11T05:17:33Z (every 15 minutes from the paper server)
 
 ## By model
 
@@ -10,24 +10,24 @@ Each model trades its own paper book; compare them side by side, not summed.
 
 | Model | Trades (settled) | Win rate (Wilson 95%) | Net PnL (USDC) | Avg / trade | Net 95% bootstrap |
 | --- | --- | --- | --- | --- | --- |
-| A · Conviction (momentum) | 19 (19) | 0.5263 (0.3171 to 0.7267) | 1.6499 | 0.0868 | needs 20+ settled |
-| B · Conviction (brownian+micro) | 26 (26) | 0.4231 (0.2554 to 0.6105) | -2.4017 | -0.0924 | -8.9689 to 4.1881 |
-| C · Conviction (calibrated) · hold to settle | 26 (25) | 0.5600 (0.3707 to 0.7333) | 1.4531 | 0.0581 | -6.6705 to 8.5307 |
+| A · Conviction (momentum) | 21 (21) | 0.5714 (0.3655 to 0.7553) | 2.8897 | 0.1376 | -2.7271 to 8.0168 |
+| B · Conviction (brownian+micro) | 28 (28) | 0.4643 (0.2953 to 0.6419) | -1.1620 | -0.0415 | -8.2793 to 5.9145 |
+| C · Conviction (calibrated) · hold to settle | 27 (27) | 0.5556 (0.3731 to 0.7241) | -1.6110 | -0.0597 | -14.1284 to 8.3970 |
 
 ## All models combined
 
 | Metric | Value |
 | --- | --- |
-| Observed since | 2026-11-10T21:45:06Z (7.3 h) |
-| Last heartbeat | 2026-11-11T05:02:28Z (age 1.3 s) |
+| Observed since | 2026-11-10T21:45:06Z (7.5 h) |
+| Last heartbeat | 2026-11-11T05:17:33Z (age 0.5 s) |
 | Feeds healthy | yes |
-| Windows observed | 89 |
-| Paper trades | 71 |
-| Settled trades | 70 |
-| Win rate | 0.5000 (Wilson 95%: 0.3860 to 0.6140) |
-| Net PnL, paper (USDC) | 0.7013 after est. fees (gross 6.5209) |
-| Net PnL 95% bootstrap (USDC) | -10.6609 to 12.3846 |
-| Brier, model vs market (45 settled) | 0.1500 vs 0.1408 |
+| Windows observed | 92 |
+| Paper trades | 76 |
+| Settled trades | 76 |
+| Win rate | 0.5263 (Wilson 95%: 0.4155 to 0.6346) |
+| Net PnL, paper (USDC) | 0.1167 after est. fees (gross 6.2557) |
+| Net PnL 95% bootstrap (USDC) | -15.1343 to 13.8021 |
+| Brier, model vs market (51 settled) | 0.1490 vs 0.1402 |
 | JEV calls / latency p50 | 0 / n/a ms |
 
 Paper results only. Fees are an estimate. Small samples do not establish an edge.
