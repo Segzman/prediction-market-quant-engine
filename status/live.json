@@ -1,9 +1,9 @@
 {
   "banner": "Paper trading only. No real money. No claim of edge.",
   "brier": {
-    "market_baseline": 0.1335,
-    "model": 0.1386,
-    "n": 87
+    "market_baseline": 0.1323,
+    "model": 0.1371,
+    "n": 88
   },
   "feeds_healthy": true,
   "jev": {
@@ -13,15 +13,15 @@
   },
   "net_pnl_usdc": {
     "bootstrap95": [
-      -46.3996,
-      3.6077
+      -47.3593,
+      4.4682
     ],
-    "est_fees": 12.1014,
-    "gross": -9.1629,
-    "net": -21.2643
+    "est_fees": 12.1484,
+    "gross": -8.3629,
+    "net": -20.5114
   },
-  "paper_trades": 144,
-  "settled_trades": 143,
+  "paper_trades": 145,
+  "settled_trades": 144,
   "tracks": {
     "A \u00b7 Conviction (momentum)": {
       "avg_net_per_trade": -0.1975,
@@ -45,7 +45,7 @@
         3.6873
       ],
       "net_pnl_usdc": -6.3326,
-      "paper_trades": 59,
+      "paper_trades": 60,
       "settled_trades": 59,
       "wilson95": [
         0.3215,
@@ -54,36 +54,36 @@
       "win_rate": 0.4407
     },
     "C \u00b7 Conviction (calibrated) \u00b7 hold to settle": {
-      "avg_net_per_trade": -0.1599,
+      "avg_net_per_trade": -0.1396,
       "bootstrap95": [
-        -28.8343,
-        11.9247
+        -27.6054,
+        12.334
       ],
-      "net_pnl_usdc": -7.0337,
+      "net_pnl_usdc": -6.2807,
       "paper_trades": 45,
-      "settled_trades": 44,
+      "settled_trades": 45,
       "wilson95": [
-        0.4887,
-        0.7622
+        0.4984,
+        0.7678
       ],
-      "win_rate": 0.6364
+      "win_rate": 0.6444
     }
   },
-  "updated_at": "2026-11-11T09:48:46Z",
+  "updated_at": "2026-11-11T10:03:52Z",
   "uptime": {
     "bot_up": true,
-    "heartbeat_age_seconds": 1.8,
-    "last_heartbeat_utc": "2026-11-11T09:48:44Z",
-    "observed_hours": 12.06,
+    "heartbeat_age_seconds": 2.9,
+    "last_heartbeat_utc": "2026-11-11T10:03:49Z",
+    "observed_hours": 12.31,
     "observed_since_utc": "2026-11-10T21:45:06Z"
   },
   "win_rate": {
-    "rate": 0.4895,
+    "rate": 0.4931,
     "wilson95": [
-      0.4089,
-      0.5706
+      0.4126,
+      0.5738
     ],
-    "wins": 70
+    "wins": 71
   },
-  "windows_observed": 146
+  "windows_observed": 149
 }
