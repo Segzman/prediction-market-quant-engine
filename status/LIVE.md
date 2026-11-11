@@ -2,7 +2,7 @@
 
 > **Paper trading only. No real money is at risk. This page makes no claim of edge.**
 
-Updated: 2026-11-11T03:36:37Z (every 15 minutes from the paper server)
+Updated: 2026-11-11T03:51:41Z (every 15 minutes from the paper server)
 
 ## By model
 
@@ -10,23 +10,23 @@ Each model trades its own paper book; compare them side by side, not summed.
 
 | Model | Trades (settled) | Win rate (Wilson 95%) | Net PnL (USDC) | Avg / trade | Net 95% bootstrap |
 | --- | --- | --- | --- | --- | --- |
-| A · Conviction (momentum) | 7 (7) | 0.5714 (0.2505 to 0.8418) | 1.2559 | 0.1794 | needs 20+ settled |
-| B · Conviction (brownian+micro) | 11 (11) | 0.4545 (0.2127 to 0.7199) | -1.6513 | -0.1501 | needs 20+ settled |
-| C · Conviction (calibrated) | 13 (13) | 0.5385 (0.2914 to 0.7679) | -0.7899 | -0.0608 | needs 20+ settled |
+| A · Conviction (momentum) | 9 (8) | 0.5000 (0.2152 to 0.7848) | 0.5066 | 0.0633 | needs 20+ settled |
+| B · Conviction (brownian+micro) | 13 (12) | 0.4167 (0.1933 to 0.6805) | -2.4007 | -0.2001 | needs 20+ settled |
+| C · Conviction (calibrated) | 15 (14) | 0.5000 (0.2680 to 0.7320) | -1.5393 | -0.1099 | needs 20+ settled |
 
 ## All models combined
 
 | Metric | Value |
 | --- | --- |
-| Observed since | 2026-11-10T21:45:06Z (5.9 h) |
-| Last heartbeat | 2026-11-11T03:36:37Z (age 0.1 s) |
+| Observed since | 2026-11-10T21:45:06Z (6.1 h) |
+| Last heartbeat | 2026-11-11T03:51:41Z (age 0.2 s) |
 | Feeds healthy | yes |
-| Windows observed | 72 |
-| Paper trades | 31 |
-| Settled trades | 31 |
-| Win rate | 0.5161 (Wilson 95%: 0.3484 to 0.6803) |
-| Net PnL, paper (USDC) | -1.1853 after est. fees (gross 1.4353) |
-| Net PnL 95% bootstrap (USDC) | -10.8499 to 6.7146 |
+| Windows observed | 75 |
+| Paper trades | 37 |
+| Settled trades | 34 |
+| Win rate | 0.4706 (Wilson 95%: 0.3145 to 0.6326) |
+| Net PnL, paper (USDC) | -3.4334 after est. fees (gross -0.3647) |
+| Net PnL 95% bootstrap (USDC) | -12.8577 to 4.7634 |
 | Brier, model vs market (19 settled) | 0.1332 vs 0.1260 |
 | JEV calls / latency p50 | 0 / n/a ms |
 
