@@ -5,7 +5,7 @@
     "model": 0.1446,
     "n": 95
   },
-  "feeds_healthy": true,
+  "feeds_healthy": false,
   "jev": {
     "api_calls": 0,
     "latency_ms_p50": null,
@@ -69,12 +69,12 @@
       "win_rate": 0.6471
     }
   },
-  "updated_at": "2026-11-11T17:06:46Z",
+  "updated_at": "2026-11-11T17:21:47Z",
   "uptime": {
     "bot_up": true,
-    "heartbeat_age_seconds": 33.3,
-    "last_heartbeat_utc": "2026-11-11T17:06:13Z",
-    "observed_hours": 19.36,
+    "heartbeat_age_seconds": 3.0,
+    "last_heartbeat_utc": "2026-11-11T17:21:44Z",
+    "observed_hours": 19.61,
     "observed_since_utc": "2026-11-10T21:45:06Z"
   },
   "win_rate": {
@@ -85,5 +85,5 @@
     ],
     "wins": 76
   },
-  "windows_observed": 234
+  "windows_observed": 237
 }
