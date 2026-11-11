@@ -20,7 +20,7 @@
     "gross": -9.1629,
     "net": -21.2643
   },
-  "paper_trades": 143,
+  "paper_trades": 144,
   "settled_trades": 143,
   "tracks": {
     "A \u00b7 Conviction (momentum)": {
@@ -60,7 +60,7 @@
         11.9247
       ],
       "net_pnl_usdc": -7.0337,
-      "paper_trades": 44,
+      "paper_trades": 45,
       "settled_trades": 44,
       "wilson95": [
         0.4887,
@@ -69,12 +69,12 @@
       "win_rate": 0.6364
     }
   },
-  "updated_at": "2026-11-11T09:33:42Z",
+  "updated_at": "2026-11-11T09:48:46Z",
   "uptime": {
     "bot_up": true,
-    "heartbeat_age_seconds": 1.6,
-    "last_heartbeat_utc": "2026-11-11T09:33:41Z",
-    "observed_hours": 11.81,
+    "heartbeat_age_seconds": 1.8,
+    "last_heartbeat_utc": "2026-11-11T09:48:44Z",
+    "observed_hours": 12.06,
     "observed_since_utc": "2026-11-10T21:45:06Z"
   },
   "win_rate": {
@@ -85,5 +85,5 @@
     ],
     "wins": 70
   },
-  "windows_observed": 143
+  "windows_observed": 146
 }
