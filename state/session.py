@@ -43,6 +43,7 @@ class TradeRecord:
     pnl: float = 0.0  # net of entry and exit fees once resolved
     fee_usdc: float = 0.0  # entry taker fee
     partial_pnl: float = 0.0  # exit-fee-net P&L already realized by partial closes
+    resolved_ts: float = 0.0  # when the outcome was booked (orders the P&L curve)
     entry_regime: str = ""
 
 
@@ -432,6 +433,7 @@ class BotState:
             pnl = settled + trade.partial_pnl  # partial closes were realized earlier
             won = pnl > 0
             trade.resolved = True
+            trade.resolved_ts = time.time()
             trade.status = "WIN" if won else "LOSS"
             trade.resolved_up = resolved_up
             trade.pnl = pnl
@@ -473,6 +475,7 @@ class BotState:
             trade.pnl = position_pnl - trade.fee_usdc
             won = trade.pnl > 0
             trade.resolved = True
+            trade.resolved_ts = time.time()
             trade.status = "WIN" if won else "LOSS"
             self.daily_pnl -= trade.fee_usdc
             self.realized_pnl -= trade.fee_usdc

@@ -167,6 +167,7 @@ from risk.sizing import get_bet_size, plan_position_sizes
 from sim.demo import DemoClient
 from sim.feed import SimulatedFeed
 from state import BotState, ExitReason, Position, WindowPhase, WindowState
+from state.position import PositionStatus
 from state.session import TradeRecord, apply_price
 from state.track import TRACK_COLORS, TRACK_CSS_COLORS, ModelTrack
 from strategy.entry_helpers import (
@@ -722,9 +723,12 @@ async def check_position_exits(
                     or exit_price
                     or position.entry_price
                 )
-                closed_notional_usdc = _filled_amount_usdc(
-                    filled_exit_result,
-                    position.remaining_size_usdc,
+                # A SELL fill reports shares; the cost basis being closed is shares * entry price
+                # (shares * exit price would be the sale proceeds).
+                closed_notional_usdc = (
+                    round(filled_exit_result.filled_size * position.entry_price, 4)
+                    if filled_exit_result.filled_size > 0 and position.entry_price > 0
+                    else position.remaining_size_usdc
                 )
                 close_fraction = min(
                     1.0,
@@ -763,7 +767,8 @@ async def check_position_exits(
 
             track.state.realized_pnl += realized_pnl
             track.state.daily_pnl += realized_pnl
-            if close_fraction >= 0.999:
+            fully_closed = close_fraction >= 0.999 or position.status == PositionStatus.CLOSED
+            if fully_closed:
                 _record_full_exit(track, position, window.end_ts, exit_price, exit_reason.value)
             else:
                 track.state.record_partial_exit(position.order_id, realized_pnl)
@@ -781,7 +786,7 @@ async def check_position_exits(
                     f"{position.direction} @ {exit_price:.3f}"
                 )
 
-            if close_fraction >= 0.999:
+            if close_fraction >= 0.999 or position.status == PositionStatus.CLOSED:
                 closed_positions.append(position)
 
         except Exception as e:
@@ -1260,10 +1265,13 @@ def restore_track_state(state: BotState, ledger: Ledger, asset: str, *, now: flo
         )
         rec.fee_usdc = estimate_trade_fee_usdc(asset=t.get("asset") or asset, market_price=price, bet_size=amount)
         counts["trades"] += 1
-        if datetime.fromtimestamp(rec.ts, UTC).date() == today:
-            state.daily_trades += 1
+        if rec.role != "HEDGE":  # record_trade only counts primaries
+            state.total_trades += 1
+            if datetime.fromtimestamp(rec.ts, UTC).date() == today:
+                state.daily_trades += 1
         end = terminal.get(rec.order_id)
         rec.resolved = True
+        rec.resolved_ts = float((end or {}).get("ts") or rec.ts)
         if end is None:
             rec.status = "ORPHANED"
             counts["orphaned"] += 1
@@ -1272,7 +1280,11 @@ def restore_track_state(state: BotState, ledger: Ledger, asset: str, *, now: flo
             counts["cancelled"] += 1
         else:
             fees = end.get("fees_usdc")
-            rec.pnl = float(end.get("pnl") or 0.0) - (float(fees) if fees is not None else rec.fee_usdc)
+            rec.pnl = (
+                float(end.get("pnl") or 0.0)
+                - (float(fees) if fees is not None else rec.fee_usdc)
+                + float(end.get("partial_net_usdc") or 0.0)
+            )
             rec.status = "WIN" if rec.pnl > 0 else "LOSS"
             rec.resolved_up = end.get("resolved_up")
             state.realized_pnl += rec.pnl
@@ -2900,6 +2912,7 @@ async def resolve_submitted_trades(
             closed_time=resolution.get("closed_time"),
             uma_resolution_status=resolution.get("uma_resolution_status"),
             fees_usdc=next((t.fee_usdc for t in state.trade_history if t.order_id == trade.order_id), None),
+            partial_net_usdc=next((t.partial_pnl for t in state.trade_history if t.order_id == trade.order_id), 0.0),
         )
         state.record_resolution(trade.order_id, resolved_up)
 

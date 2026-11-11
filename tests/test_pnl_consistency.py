@@ -104,3 +104,42 @@ def test_market_tape_writes_one_row_per_tick_by_utc_day(tmp_path):
     rows = [json.loads(line) for line in (tmp_path / "2026-11-11.jsonl").read_text().splitlines()]
     assert len(rows) == 2
     assert rows[0]["up_ask"] == 0.56 and rows[0]["btc_src"] == {"COINBASE": 73000.5} and rows[0]["secs_left"] == 42
+
+
+def test_partial_close_then_settlement_agrees_across_state_ledger_restore(tmp_path):
+    """Audit case: $4 at 0.80, half sold at 0.90, rest held to a win."""
+    from bot import restore_track_state
+    from persistence.ledger import Ledger, net_pnl
+    from state.position import Position
+
+    led = Ledger(str(tmp_path / "t.jsonl"))
+    led.record_trade(window_end_ts=100, direction="UP", amount_usdc=4.0, price=0.80, edge=0.05, ev=0.0,
+                     model="A", order_id="p", dry_run=True, asset="BTC", role="PRIMARY", track="BOTH")
+    state = BotState()
+    entry_fee = _entry(state, "p")
+    pos = Position(order_id="p", window_end_ts=100, direction="UP", size_usdc=4.0, entry_price=0.80, entry_ts=0.0)
+    fee1 = estimate_trade_fee_usdc(asset="BTC", market_price=0.90, bet_size=0, shares=2.5)
+    r1 = pos.close(0.90, 1.0, ExitReason.TAKE_PROFIT, fee_usdc=fee1, partial_pct=0.5)
+    state.realized_pnl += r1
+    state.record_partial_exit("p", r1)
+    state.update_trade_amount("p", pos.remaining_size_usdc)
+    state.record_resolution("p", resolved_up=True)
+    trade = state.trade_history[0]
+    led.record_resolution("p", 100, True, "UP", trade.amount_usdc, 0.80,
+                          fees_usdc=trade.fee_usdc, partial_net_usdc=trade.partial_pnl)
+
+    expected = r1 + 2.0 * (1 / 0.80 - 1) - entry_fee
+    assert trade.pnl == pytest.approx(expected)
+    assert state.realized_pnl == pytest.approx(expected)
+    assert net_pnl(led.get_all_resolutions()[0]) == pytest.approx(expected)
+    restored = BotState()
+    restore_track_state(restored, led, "BTC")
+    assert restored.realized_pnl == pytest.approx(expected)
+    assert restored.total_trades == 1
+
+
+def test_net_loss_with_positive_gross_counts_as_loss():
+    from persistence.ledger import net_pnl
+
+    row = {"pnl": 0.05, "fees_usdc": 0.1099}  # sold 5 shares 0.80 -> 0.81
+    assert net_pnl(row) < 0
