@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "label": "paper PnL",
-  "message": "+1.61 USDC",
-  "color": "brightgreen"
+  "message": "-8.61 USDC",
+  "color": "red"
 }
