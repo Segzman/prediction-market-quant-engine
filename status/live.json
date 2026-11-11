@@ -1,9 +1,9 @@
 {
   "banner": "Paper trading only. No real money. No claim of edge.",
   "brier": {
-    "market_baseline": null,
-    "model": null,
-    "n": 0
+    "market_baseline": 0.0303,
+    "model": 0.0057,
+    "n": 5
   },
   "feeds_healthy": true,
   "jev": {
@@ -13,25 +13,65 @@
   },
   "net_pnl_usdc": {
     "bootstrap95": null,
-    "est_fees": 0,
-    "gross": 0,
-    "net": 0
+    "est_fees": 0.2514,
+    "gross": 2.0146,
+    "net": 1.7632
   },
-  "paper_trades": 0,
-  "settled_trades": 0,
-  "tracks": {},
-  "updated_at": "2026-11-11T02:36:18Z",
+  "paper_trades": 8,
+  "settled_trades": 5,
+  "tracks": {
+    "A \u00b7 Conviction (momentum)": {
+      "avg_net_per_trade": 0.1988,
+      "bootstrap95": null,
+      "net_pnl_usdc": 0.1988,
+      "paper_trades": 2,
+      "settled_trades": 1,
+      "wilson95": [
+        0.2065,
+        1.0
+      ],
+      "win_rate": 1.0
+    },
+    "B \u00b7 Conviction (brownian+micro)": {
+      "avg_net_per_trade": 0.3788,
+      "bootstrap95": null,
+      "net_pnl_usdc": 0.7576,
+      "paper_trades": 3,
+      "settled_trades": 2,
+      "wilson95": [
+        0.3424,
+        1.0
+      ],
+      "win_rate": 1.0
+    },
+    "C \u00b7 Conviction (calibrated)": {
+      "avg_net_per_trade": 0.4035,
+      "bootstrap95": null,
+      "net_pnl_usdc": 0.8069,
+      "paper_trades": 3,
+      "settled_trades": 2,
+      "wilson95": [
+        0.3424,
+        1.0
+      ],
+      "win_rate": 1.0
+    }
+  },
+  "updated_at": "2026-11-11T02:51:26Z",
   "uptime": {
     "bot_up": true,
-    "heartbeat_age_seconds": 0.9,
-    "last_heartbeat_utc": "2026-11-11T02:36:17Z",
-    "observed_hours": 4.85,
+    "heartbeat_age_seconds": 1.1,
+    "last_heartbeat_utc": "2026-11-11T02:51:24Z",
+    "observed_hours": 5.11,
     "observed_since_utc": "2026-11-10T21:45:06Z"
   },
   "win_rate": {
-    "rate": null,
-    "wilson95": null,
-    "wins": 0
+    "rate": 1.0,
+    "wilson95": [
+      0.5655,
+      1.0
+    ],
+    "wins": 5
   },
-  "windows_observed": 60
+  "windows_observed": 63
 }
