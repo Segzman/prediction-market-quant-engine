@@ -69,12 +69,12 @@
       "win_rate": 0.6471
     }
   },
-  "updated_at": "2026-11-11T22:40:04Z",
+  "updated_at": "2026-11-11T22:55:05Z",
   "uptime": {
     "bot_up": true,
-    "heartbeat_age_seconds": 0.6,
-    "last_heartbeat_utc": "2026-11-11T22:40:03Z",
-    "observed_hours": 24.92,
+    "heartbeat_age_seconds": 0.2,
+    "last_heartbeat_utc": "2026-11-11T22:55:05Z",
+    "observed_hours": 25.17,
     "observed_since_utc": "2026-11-10T21:45:06Z"
   },
   "win_rate": {
@@ -85,5 +85,5 @@
     ],
     "wins": 77
   },
-  "windows_observed": 279
+  "windows_observed": 283
 }
