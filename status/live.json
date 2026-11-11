@@ -1,9 +1,9 @@
 {
   "banner": "Paper trading only. No real money. No claim of edge.",
   "brier": {
-    "market_baseline": 0.129,
-    "model": 0.1335,
-    "n": 71
+    "market_baseline": 0.1331,
+    "model": 0.1391,
+    "n": 74
   },
   "feeds_healthy": true,
   "jev": {
@@ -13,77 +13,77 @@
   },
   "net_pnl_usdc": {
     "bootstrap95": [
-      -30.0497,
-      11.2012
+      -37.0571,
+      7.6199
     ],
-    "est_fees": 9.9507,
-    "gross": 1.3409,
-    "net": -8.6098
+    "est_fees": 10.4896,
+    "gross": -3.2106,
+    "net": -13.7002
   },
-  "paper_trades": 119,
-  "settled_trades": 117,
+  "paper_trades": 124,
+  "settled_trades": 123,
   "tracks": {
     "A \u00b7 Conviction (momentum)": {
-      "avg_net_per_trade": -0.0562,
+      "avg_net_per_trade": -0.0817,
       "bootstrap95": [
-        -9.4336,
-        5.4951
+        -10.5158,
+        4.4133
       ],
-      "net_pnl_usdc": -1.9122,
-      "paper_trades": 35,
-      "settled_trades": 34,
+      "net_pnl_usdc": -3.0232,
+      "paper_trades": 37,
+      "settled_trades": 37,
       "wilson95": [
-        0.2888,
-        0.6055
+        0.2867,
+        0.5909
       ],
-      "win_rate": 0.4412
+      "win_rate": 0.4324
     },
     "B \u00b7 Conviction (brownian+micro)": {
-      "avg_net_per_trade": -0.121,
+      "avg_net_per_trade": -0.1334,
       "bootstrap95": [
-        -13.9916,
-        3.8594
+        -14.8239,
+        2.3151
       ],
-      "net_pnl_usdc": -5.3262,
-      "paper_trades": 44,
-      "settled_trades": 44,
+      "net_pnl_usdc": -6.0026,
+      "paper_trades": 45,
+      "settled_trades": 45,
       "wilson95": [
-        0.2769,
-        0.5559
+        0.2702,
+        0.5455
       ],
-      "win_rate": 0.4091
+      "win_rate": 0.4
     },
     "C \u00b7 Conviction (calibrated) \u00b7 hold to settle": {
-      "avg_net_per_trade": -0.0352,
+      "avg_net_per_trade": -0.114,
       "bootstrap95": [
-        -19.6152,
-        13.5213
+        -25.0963,
+        12.5999
       ],
-      "net_pnl_usdc": -1.3714,
-      "paper_trades": 40,
-      "settled_trades": 39,
+      "net_pnl_usdc": -4.6744,
+      "paper_trades": 42,
+      "settled_trades": 41,
       "wilson95": [
-        0.4842,
-        0.7726
+        0.4812,
+        0.7641
       ],
-      "win_rate": 0.641
+      "win_rate": 0.6341
     }
   },
-  "updated_at": "2026-11-11T06:32:53Z",
+  "updated_at": "2026-11-11T06:47:57Z",
   "uptime": {
     "bot_up": true,
-    "heartbeat_age_seconds": 2.1,
-    "last_heartbeat_utc": "2026-11-11T06:32:51Z",
-    "observed_hours": 8.8,
+    "heartbeat_age_seconds": 1.5,
+    "last_heartbeat_utc": "2026-11-11T06:47:55Z",
+    "observed_hours": 9.05,
     "observed_since_utc": "2026-11-10T21:45:06Z"
   },
   "win_rate": {
-    "rate": 0.4957,
+    "rate": 0.4878,
     "wilson95": [
-      0.4067,
-      0.585
+      0.4012,
+      0.5752
     ],
-    "wins": 58
+    "wins": 60
   },
-  "windows_observed": 107
+  "windows_observed": 110
 }
